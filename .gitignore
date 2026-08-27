@@ -1,0 +1,51 @@
+# --- backend (Python) ---
+backend/.venv/
+backend/venv/
+backend/**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# GCP service account keys — never commit these
+backend/**/*.json
+!backend/src/cities/metro/*.json
+
+# backend misc
+backend/query_logs/
+backend/test.ipynb
+backend/notebooks/*.ipynb
+backend/locustfile.py
+backend/sample.md
+backend/.code-review-graph/
+
+# --- frontend (Node / Next.js) ---
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.*
+frontend/.yarn/*
+!frontend/.yarn/patches
+!frontend/.yarn/plugins
+!frontend/.yarn/releases
+!frontend/.yarn/versions
+frontend/coverage/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+frontend/.vercel/
+*.tsbuildinfo
+frontend/next-env.d.ts
+
+# --- shared ---
+.env*
+!.env.example
+!.env.sample
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.DS_Store
+.vscode/
+.idea/
+*.pem

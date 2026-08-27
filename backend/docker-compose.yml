@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: .
+    restart: always
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      # PORT/HOST come from .env in the deploy directory, so the same
+      # compose file works for prod (.env: PORT=9000) and dev
+      # (.env: PORT=9001) without editing this file per environment.
+      - PORT=${PORT:-9000}
+      # Bind loopback-only for defense in depth (ufw already blocks the
+      # port externally, but this matches how the other native services on
+      # this VPS bind). nginx terminates TLS and reverse-proxies in.
+      - HOST=127.0.0.1

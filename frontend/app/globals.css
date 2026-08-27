@@ -1,0 +1,2978 @@
+@import "tailwindcss";
+
+/* ── Nawabi Palette ── */
+:root {
+  --nawab-ivory:      #faf8f5;
+  --nawab-parchment:  #f0ece4;
+  --nawab-gold:       #C8782E;
+  --nawab-gold-lt:    #E09A50;
+  --nawab-ink:        #1C1525;
+  --nawab-ink-60:     #5C5070;
+  --nawab-rose:       #B05A4A;
+  --nawab-teal:       #1E7A7A;
+  --nawab-border:     #DED0B8;
+
+  /* City colour tokens — overridden per active city */
+  --city-color:       #C8782E;
+  --city-color-light: #E09A50;
+  --city-glow:        rgba(200,120,46,0.35);
+  --city-bg:          #FAF6EF;
+
+}
+
+/* ── City-specific overrides ── */
+[data-city="lucknow"] {
+  --city-color: #C8782E; --city-color-light: #E09A50;
+  --city-glow: rgba(200,120,46,0.35); --city-bg: #faf8f5;
+  --nawab-gold: #C8782E; --nawab-gold-lt: #E09A50;
+}
+[data-city="varanasi"] {
+  --city-color: #D96020; --city-color-light: #F08040;
+  --city-glow: rgba(217,96,32,0.32); --city-bg: #FFF6EC;
+  --nawab-gold: #D96020; --nawab-gold-lt: #F08040;
+  --nawab-ivory: #FFF6EC; --nawab-parchment: #FDECD8;
+  --nawab-border: #F2C8A0;
+}
+[data-city="kanpur"] {
+  --city-color: #1A80C0; --city-color-light: #3EA0E0;
+  --city-glow: rgba(26,128,192,0.32); --city-bg: #EBF6FC;
+  --nawab-gold: #1A80C0; --nawab-gold-lt: #3EA0E0;
+  --nawab-ivory: #EBF6FC; --nawab-parchment: #D4ECF8;
+  --nawab-border: #A8D8F0;
+}
+[data-city="noida"] {
+  --city-color: #8840CC; --city-color-light: #AA62EE;
+  --city-glow: rgba(136,64,204,0.32); --city-bg: #F5F0FF;
+  --nawab-gold: #8840CC; --nawab-gold-lt: #AA62EE;
+  --nawab-ivory: #F5F0FF; --nawab-parchment: #EBE0FF;
+  --nawab-border: #CAB0EE;
+}
+
+@theme inline {
+  --color-background: var(--nawab-ivory);
+  --color-foreground: var(--nawab-ink);
+  --font-sans: 'Google Sans', sans-serif;
+  --font-display: 'Fredoka', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+body {
+  background: var(--nawab-ivory);
+  color: var(--nawab-ink);
+  font-family: 'Google Sans', sans-serif;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+  transition: background 0.5s ease, color 0.3s ease;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--nawab-border); border-radius: 2px; }
+
+/* ══════════════════════════════════════════════════════════
+   ANIMATIONS
+══════════════════════════════════════════════════════════ */
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33%       { transform: translateY(-8px) rotate(0.5deg); }
+  66%       { transform: translateY(-4px) rotate(-0.3deg); }
+}
+@keyframes shimmer-gold {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50%       { opacity: 1; }
+}
+@keyframes ornament-breathe {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
+  50%       { transform: scale(1.08) rotate(2deg); opacity: 1; }
+}
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(32px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes selector-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes nawab-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+/* One shimmer for every skeleton — CSS-side and JSX-side (ui/Shimmer.tsx).
+   Previously four hand-copied gradients, each with a different mid-stop. */
+.nawab-shimmer {
+  background: linear-gradient(90deg,
+    var(--nawab-border) 25%,
+    var(--nawab-parchment) 50%,
+    var(--nawab-border) 75%
+  );
+  background-size: 400px 100%;
+  animation: nawab-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+@keyframes nawab-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes nawab-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes nawab-pulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+@keyframes bg-pan {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   CITY SELECTOR
+══════════════════════════════════════════════════════════ */
+.city-selector-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 2rem 1rem;
+  animation: selector-in 0.5s ease both;
+}
+
+/* Dark textured background */
+.city-selector-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: #0A0710;
+}
+.city-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(184,134,78,0.07)' stroke-width='0.6'%3E%3Cpolygon points='30,2 58,16 58,44 30,58 2,44 2,16'/%3E%3Cpolygon points='30,10 50,20 50,40 30,50 10,40 10,20'/%3E%3Cline x1='30' y1='2' x2='30' y2='58'/%3E%3Cline x1='2' y1='16' x2='58' y2='44'/%3E%3Cline x1='58' y1='16' x2='2' y2='44'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 60px 60px;
+  opacity: 1;
+  animation: bg-pan 120s linear infinite;
+}
+.city-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, transparent 30%, #0A0710 100%);
+}
+
+/* Content wrapper */
+.city-selector-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.5rem;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+/* Header */
+.city-selector-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  animation: fade-up 0.7s 0.1s ease both;
+}
+.city-selector-ornament {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.25rem;
+}
+.ornament-line {
+  width: 80px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(184,134,78,0.5));
+}
+.city-selector-ornament .ornament-line:last-child {
+  background: linear-gradient(to left, transparent, rgba(184,134,78,0.5));
+}
+.ornament-star {
+  color: #B8864E;
+  font-size: 14px;
+  animation: ornament-breathe 3s ease-in-out infinite;
+}
+.city-selector-title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 300;
+  font-size: clamp(2.4rem, 6vw, 4rem);
+  letter-spacing: 0.12em;
+  color: #F8F2E8;
+  margin: 0;
+  line-height: 1;
+}
+.city-selector-title em {
+  color: #B8864E;
+  font-style: italic;
+}
+.city-selector-tagline {
+  font-family: 'Fredoka', sans-serif;
+  font-style: italic;
+  font-weight: 300;
+  font-size: 1rem;
+  color: rgba(248,242,232,0.5);
+  margin: 0;
+  letter-spacing: 0.15em;
+}
+
+/* City cards grid */
+.city-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+  animation: fade-up 0.7s 0.25s ease both;
+}
+
+/* Individual city card */
+.city-card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+  padding: 2rem 1.5rem 1.75rem;
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  overflow: hidden;
+  transition:
+    transform 0.3s cubic-bezier(0.34,1.56,0.64,1),
+    border-color 0.3s ease,
+    box-shadow 0.3s ease;
+  animation: card-enter 0.6s ease both;
+  min-height: 300px;
+}
+.city-card:hover,
+.city-card--hovered {
+  transform: translateY(-8px) scale(1.02);
+  border-color: var(--card-color);
+  box-shadow:
+    0 0 0 1px var(--card-color),
+    0 20px 60px var(--card-glow),
+    0 8px 24px rgba(0,0,0,0.5);
+}
+.city-card--selecting {
+  transform: scale(0.97) !important;
+  opacity: 0.7;
+  transition: transform 0.2s ease, opacity 0.2s ease !important;
+}
+
+/* Card glow overlay */
+.city-card-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% -10%, var(--card-glow) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  border-radius: 16px;
+}
+.city-card--hovered .city-card-glow {
+  opacity: 1;
+}
+
+/* Top accent bar */
+.city-card-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--card-accent-bg);
+  border-radius: 16px 16px 0 0;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+.city-card--hovered .city-card-bar {
+  opacity: 1;
+}
+
+/* Symbol */
+.city-card-symbol {
+  font-size: 2.4rem;
+  color: var(--card-color);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  animation: float-gentle 4s ease-in-out infinite;
+  transition: color 0.3s ease;
+}
+
+/* Names */
+.city-card-names {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+.city-card-local {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 300;
+  color: rgba(248,242,232,0.4);
+  letter-spacing: 0.08em;
+  transition: color 0.3s ease;
+}
+.city-card--hovered .city-card-local {
+  color: var(--card-color-light);
+}
+.city-card-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 2rem;
+  font-weight: 400;
+  color: #F8F2E8;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+/* Tagline */
+.city-card-tagline {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(248,242,232,0.45);
+  margin: 0.2rem 0 0;
+  line-height: 1.4;
+  transition: color 0.3s ease;
+}
+.city-card--hovered .city-card-tagline {
+  color: var(--card-color-light);
+}
+
+/* Hindi/Urdu phrase */
+.city-card-phrase {
+  font-family: 'Fredoka', sans-serif;
+  font-style: italic;
+  font-size: 0.95rem;
+  color: rgba(248,242,232,0.3);
+  margin: 0.3rem 0 0;
+  transition: color 0.3s ease;
+}
+.city-card--hovered .city-card-phrase {
+  color: rgba(248,242,232,0.65);
+}
+
+/* Sub landmarks */
+.city-card-sub {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.62rem;
+  color: rgba(248,242,232,0.2);
+  margin: 0.15rem 0 0;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+  transition: color 0.3s ease;
+}
+.city-card--hovered .city-card-sub {
+  color: rgba(248,242,232,0.45);
+}
+
+/* CTA */
+.city-card-cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 1rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--card-color);
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.city-card--hovered .city-card-cta {
+  opacity: 1;
+  transform: translateY(0);
+}
+.city-card-cta-arrow {
+  transition: transform 0.2s ease;
+}
+.city-card--hovered .city-card-cta-arrow {
+  transform: translateX(4px);
+}
+
+/* Selector footer */
+.city-selector-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: fade-up 0.7s 0.4s ease both;
+}
+.ornament-line-sm {
+  width: 60px;
+  height: 1px;
+  background: rgba(184,134,78,0.25);
+  flex-shrink: 0;
+}
+.footer-text {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(184,134,78,0.35);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CITY HEADER BADGE (in chat)
+══════════════════════════════════════════════════════════ */
+.city-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--nawab-parchment);
+  border: 1px solid var(--nawab-border);
+  border-radius: 999px;
+  padding: 3px 12px 3px 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+.city-badge:hover {
+  background: var(--nawab-ivory);
+  border-color: var(--nawab-gold);
+  box-shadow: 0 0 8px var(--city-glow);
+}
+.city-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--city-color);
+  box-shadow: 0 0 0 2px var(--city-glow);
+  animation: pulse-glow 2.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.city-badge-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--nawab-ink);
+}
+.city-badge-change {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nawab-ink-60);
+  margin-left: 2px;
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   APP SHELL
+══════════════════════════════════════════════════════════ */
+.nawab-app {
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  transition: background 0.5s ease;
+}
+
+.nawab-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, var(--city-glow) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 80% 80%, var(--city-glow) 0%, transparent 50%),
+    var(--nawab-ivory);
+  transition: background 0.5s ease;
+}
+
+/* Per-city dramatic backgrounds */
+[data-city="lucknow"] .nawab-main {
+  background:
+    /* radial-gradient(ellipse 70% 50% at 50% 0%, rgba(200,120,46,0.20) 0%, transparent 60%), */
+    /* radial-gradient(ellipse 50% 40% at 90% 90%, rgba(200,120,46,0.10) 0%, transparent 50%), */
+    linear-gradient(90deg, #faf8f5 0%, #faf8f5 60%, #FAF8F4 100%);
+}
+[data-city="varanasi"] .nawab-main {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(217,96,32,0.24) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 90%, rgba(217,96,32,0.12) 0%, transparent 50%),
+    linear-gradient(160deg, #FFF6EC 0%, #FDECD8 55%, #FAD8B0 100%);
+}
+[data-city="kanpur"] .nawab-main {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(26,128,192,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 90% 85%, rgba(26,128,192,0.10) 0%, transparent 50%),
+    linear-gradient(160deg, #EBF6FC 0%, #D4ECF8 55%, #BCD8EE 100%);
+}
+[data-city="noida"] .nawab-main {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, rgba(136,64,204,0.20) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 10% 90%, rgba(136,64,204,0.10) 0%, transparent 50%),
+    linear-gradient(160deg, #F5F0FF 0%, #EBE0FF 55%, #DAC8FF 100%);
+}
+
+/* Chat wrapper — fills remaining height after UserBar */
+.nawab-copilot-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Decorative floating ornament in background */
+.nawab-main::before {
+  content: "✦";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 60vw;
+  color: var(--city-color);
+  opacity: 0.015;
+  pointer-events: none;
+  animation: float-gentle 8s ease-in-out infinite;
+  z-index: 0;
+  line-height: 1;
+}
+
+/* ── Conversation sidebar ── */
+.nawab-sidebar {
+  width: 200px;
+  min-width: 200px;
+  background: linear-gradient(180deg, #F5F2EB 0%, #EFEBE2 100%);
+  border-right: 1px solid color-mix(in srgb, var(--nawab-border) 70%, transparent);
+  box-shadow: 6px 0 24px rgba(28, 21, 37, 0.04);
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  position: sticky;
+  top: 0;
+  overflow: hidden;
+  transition: background 0.4s ease, border-color 0.3s ease;
+}
+
+
+/* Header */
+.nawab-sidebar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1rem 0.9rem;
+  flex-shrink: 0;
+}
+.nawab-sidebar__logo {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--nawab-gold);
+}
+.nawab-sidebar__new-btn {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--nawab-ink);
+  background: transparent;
+  border: 1px solid var(--nawab-border);
+  border-radius: 999px;
+  padding: 3px 11px;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, color 0.18s;
+}
+.nawab-sidebar__new-btn:hover {
+  background: var(--nawab-gold);
+  border-color: var(--nawab-gold);
+  color: var(--nawab-ivory);
+}
+
+/* Divider — soft fading line instead of a hard rule */
+.nawab-sidebar__divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--nawab-border) 20%, var(--nawab-border) 80%, transparent);
+  flex-shrink: 0;
+  margin: 0 1rem 0.4rem;
+}
+
+/* Sidebar tabs — removed (History tab eliminated) */
+/* .nawab-sidebar__tabs, .nawab-sidebar__tab, .nawab-sidebar__tab--active,
+   .nawab-sidebar__history-item, .nawab-sidebar__history-date,
+   .nawab-sidebar__delete-btn — all removed */
+
+/* New chat item button inside list */
+.nawab-sidebar__new-chat-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: calc(100% - 16px);
+  margin: 4px 8px 6px;
+  padding: 8px 11px;
+  background: color-mix(in srgb, var(--nawab-gold) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nawab-gold) 20%, transparent);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.77rem;
+  color: var(--nawab-ink-60);
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.nawab-sidebar__new-chat-item:hover {
+  background: color-mix(in srgb, var(--nawab-gold) 14%, transparent);
+  border-color: color-mix(in srgb, var(--nawab-gold) 35%, transparent);
+  color: var(--nawab-ink);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--nawab-gold) 15%, transparent);
+}
+.nawab-sidebar__new-chat-icon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.nawab-sidebar__new-chat-label {
+  font-weight: 400;
+}
+.nawab-sidebar__kbd {
+  margin-left: auto;
+  font-size: 0.65rem;
+  opacity: 0.4;
+  background: rgba(0,0,0,0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: 'Google Sans', sans-serif;
+  letter-spacing: 0;
+  border: none;
+  flex-shrink: 0;
+}
+
+/* Conversation list */
+.nawab-sidebar__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.25rem 0 0.5rem;
+  scrollbar-width: none;
+  scrollbar-color: var(--nawab-border) transparent;
+  display: flex;
+  flex-direction: column;
+}
+.nawab-sidebar__list::-webkit-scrollbar { display: none; }
+
+/* Conversation items */
+.nawab-sidebar__conv-list-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+}
+
+/* Date group */
+.nawab-sidebar__group {
+  margin-top: 0.5rem;
+}
+.nawab-sidebar__group-label {
+  display: block;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nawab-ink-60);
+  padding: 0.4rem 1.1rem 0.2rem;
+  opacity: 0.55;
+}
+
+/* Conversation item */
+.nawab-sidebar__item {
+  display: block;
+  width: calc(100% - 16px);
+  margin: 0 8px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.nawab-sidebar__item:hover {
+  background: color-mix(in srgb, var(--nawab-gold) 6%, transparent);
+}
+.nawab-sidebar__item--active {
+  background: color-mix(in srgb, var(--city-color, var(--nawab-gold)) 11%, transparent) !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--city-color, var(--nawab-gold)) 22%, transparent);
+}
+.nawab-sidebar__item-title {
+  display: block;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.77rem;
+  font-weight: 400;
+  color: var(--nawab-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+}
+.nawab-sidebar__item--active .nawab-sidebar__item-title {
+  font-weight: 500;
+}
+
+/* Conversation item wrapper — positions the delete button */
+.nawab-sidebar__item-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.nawab-sidebar__item-wrap .nawab-sidebar__item {
+  flex: 1;
+  padding-right: 2rem;
+}
+.nawab-sidebar__item-delete {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--nawab-ink-60);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.nawab-sidebar__item-delete:hover {
+  color: var(--nawab-rose);
+  background: rgba(176, 90, 74, 0.08);
+}
+
+@media (hover: none) {
+  .nawab-sidebar__item-delete {
+    opacity: 0.35 !important;
+  }
+}
+
+/* Empty / error states */
+.nawab-sidebar__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 2.5rem 1rem 1.5rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--nawab-ink-60);
+  text-align: center;
+}
+.nawab-sidebar__empty-symbol {
+  font-size: 1.8rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+  animation: float-gentle 4s ease-in-out infinite;
+}
+.nawab-sidebar__empty-hint {
+  font-size: 0.65rem;
+  color: var(--nawab-ink-60);
+  opacity: 0.7;
+  max-width: 180px;
+  line-height: 1.5;
+}
+.nawab-sidebar__retry {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  color: var(--nawab-gold);
+  background: none;
+  border: 1px solid var(--nawab-border);
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+  margin-top: 0.25rem;
+  transition: background 0.15s, color 0.15s;
+}
+.nawab-sidebar__retry:hover {
+  background: var(--nawab-gold);
+  color: var(--nawab-ivory);
+}
+
+/* Skeleton */
+.conv-skeleton {
+  padding: 0.45rem 1.1rem;
+}
+/* .nawab-shimmer carries the gradient + animation */
+.conv-skeleton__title {
+  height: 11px;
+  width: 72%;
+  border-radius: 4px;
+}
+
+/* Sidebar footer */
+.nawab-sidebar__footer {
+  padding: 0.7rem 1rem;
+  margin-top: 0.2rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--nawab-ink-60);
+  opacity: 0.6;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Sidebar footer — user variant */
+.nawab-sidebar__footer--user {
+  opacity: 1;
+  gap: 8px;
+}
+.nawab-sidebar__footer-name {
+  flex: 1;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  color: var(--nawab-ink-60);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nawab-sidebar__signout {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nawab-rose);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 0;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+.nawab-sidebar__signout:hover { opacity: 1; }
+
+/* Sidebar community links */
+/* Bottom section — scrollable, capped so conversations get priority */
+.nawab-sidebar__bottom {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-shrink: 0;
+  max-height: 42%;
+  scrollbar-width: none;
+  background: rgba(28, 21, 37, 0.02);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--nawab-gold) 12%, transparent);
+}
+.nawab-sidebar__bottom::-webkit-scrollbar { display: none; }
+
+.nawab-sidebar__links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0.5rem 0.75rem;
+  border-top: none;
+  flex-shrink: 0;
+}
+
+.nawab-sidebar__link {
+  display: block;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  color: var(--nawab-ink-60);
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 8px;
+  letter-spacing: 0.01em;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nawab-sidebar__link:hover {
+  background: rgba(184, 134, 78, 0.08);
+  color: var(--nawab-gold);
+}
+
+.nawab-sidebar__collapse-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--nawab-ink-60);
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.nawab-sidebar__collapse-btn:hover {
+  background: rgba(30,23,40,0.08);
+  color: var(--nawab-ink);
+}
+
+/* ── Active Search Banner ── */
+.nawab-search-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 1.25rem 7px;
+  background: linear-gradient(to right, color-mix(in srgb, var(--banner-color, var(--nawab-gold)) 6%, transparent), transparent);
+  border-bottom: 1px solid var(--nawab-border);
+  flex-shrink: 0;
+  overflow: hidden;
+  animation: nawab-fade-up 0.3s ease both;
+}
+.nawab-search-banner__icon {
+  font-size: 13px;
+  animation: nawab-pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+.nawab-search-banner__text {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  color: var(--nawab-ink-60);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nawab-search-banner__text em {
+  font-style: normal;
+  font-weight: 500;
+}
+.nawab-search-banner__tags {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 6px;
+}
+.nawab-search-banner__tag {
+  font-size: 0.6rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid;
+  opacity: 0.8;
+  font-family: 'Google Sans', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+/* ── History loading skeleton ── */
+.nawab-history-skeleton {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* .nawab-shimmer carries the gradient + animation */
+.nawab-history-skeleton__bar {
+  height: 14px;
+}
+
+/* ── Sidebar toggle (mobile + collapsed desktop) ── */
+.nawab-sidebar-toggle {
+  display: none;
+  position: fixed;
+  top: calc(0.9rem + env(safe-area-inset-top));
+  left: calc(0.9rem + env(safe-area-inset-left));
+  z-index: 100;
+  background: var(--nawab-parchment);
+  border: 1px solid var(--nawab-border);
+  border-radius: 8px;
+  width: 44px;
+  height: 44px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  color: var(--nawab-ink);
+  box-shadow: 0 2px 8px rgba(30,23,40,0.1);
+}
+.nawab-sidebar-toggle--visible {
+  display: flex;
+}
+
+/* Mobile scrim — covers main content while sidebar drawer is open */
+.nawab-sidebar-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: rgba(28, 21, 37, 0.35);
+  animation: fade-up 0.18s ease both;
+  cursor: pointer;
+}
+/* ── Desktop: sidebar is a static flex sibling (≥ 1024px) ── */
+@media (min-width: 1024px) {
+  .nawab-sidebar-scrim { display: none !important; }
+  .nawab-main { flex: 1; min-width: 0; }
+}
+
+/* ── Tablet / Mobile: sidebar is a fixed overlay (< 1024px) ── */
+@media (max-width: 1023px) {
+  .nawab-main { width: 100%; }
+}
+
+@media (max-width: 639px) {
+  .nawab-sidebar { width: 100vw; min-width: 100vw; }
+}
+
+/* ── NawabChat frame (full-height flex column, centered column) ── */
+.nawab-chat-frame {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ── Chat body — fills remaining height ── */
+.nawab-chat-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* ── Message list ── */
+.nawab-message-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--nawab-border) transparent;
+}
+
+/* ── Chat input bar — floating pill ── */
+.nawab-chat-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  /* Matches .nawab-landing__box — same children, same insets. The wider left
+     inset clears <NawabMascot>, which is absolutely positioned at left: 22px. */
+  padding: 12px 12px 12px 22px;
+  margin: 0 1rem 1rem;
+  background: #fff;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 22px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    0 6px 24px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.nawab-chat-input:focus-within {
+  border-color: var(--lc, var(--nawab-gold));
+  box-shadow:
+    0 2px 16px rgba(0, 0, 0, 0.07),
+    0 0 0 3px color-mix(in srgb, var(--lc, var(--nawab-gold)) 14%, transparent);
+}
+
+.nawab-chat-input .nawab-landing__field-wrap {
+  flex: 1;
+}
+
+.nawab-chat-input .nawab-landing__textarea {
+  font-size: 1rem;
+}
+
+/* ── Clarifying question (agent's ask_user tool) ── */
+.nawab-question {
+  margin: 0.5rem 1.25rem;
+  padding: 0.85rem 1.1rem;
+  border-left: 3px solid var(--nawab-gold);
+  border-radius: 0 12px 12px 0;
+  background: var(--nawab-parchment);
+  animation: nawab-fade-up 0.4s ease both;
+}
+.nawab-question__label {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.nawab-question__text {
+  margin: 0.25rem 0 0;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--nawab-ink);
+}
+
+/* ── Chat history panel ── */
+.nawab-history {
+  padding: 1rem 1.25rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  max-height: 30%;
+  border-bottom: 1px solid rgba(184, 134, 78, 0.15);
+}
+
+.nawab-history__label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.25rem 0;
+}
+
+.nawab-history__line {
+  flex: 1;
+  height: 1px;
+  background: rgba(184, 134, 78, 0.2);
+}
+
+.nawab-history__text {
+  font-size: 0.65rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  white-space: nowrap;
+  font-family: 'Google Sans', sans-serif;
+}
+
+.nawab-history__msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-width: 80%;
+}
+
+.nawab-history__msg--user {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.nawab-history__msg--assistant {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.nawab-history__role {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  font-family: 'Google Sans', sans-serif;
+  color: var(--nawab-ink-60);
+}
+
+.nawab-history__content {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nawab-history__msg--user .nawab-history__content {
+  background: rgba(184, 134, 78, 0.12);
+  border: 1px solid rgba(184, 134, 78, 0.2);
+  color: var(--nawab-ink);
+}
+
+.nawab-history__msg--assistant .nawab-history__content {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--nawab-ink);
+}
+
+/* ── NawabChat card shimmer enter ── */
+.nawab-chat-card {
+  animation: fade-up 0.5s ease both;
+}
+
+/* ── Login page ── */
+.nawab-login-root {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+.nawab-login-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: var(--nawab-ivory);
+}
+.nawab-login-bg-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='rgba(184,134,78,0.06)' stroke-width='0.6'%3E%3Cpolygon points='30,2 58,16 58,44 30,58 2,44 2,16'/%3E%3Cpolygon points='30,10 50,20 50,40 30,50 10,40 10,20'/%3E%3Cline x1='30' y1='2' x2='30' y2='58'/%3E%3Cline x1='2' y1='16' x2='58' y2='44'/%3E%3Cline x1='58' y1='16' x2='2' y2='44'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}
+.nawab-login-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, var(--nawab-parchment) 100%);
+}
+.nawab-login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid var(--nawab-border);
+  border-radius: 20px;
+  padding: 2.75rem 2.5rem 2.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow:
+    0 1px 3px rgba(30,21,37,0.06),
+    0 8px 32px rgba(30,21,37,0.08);
+  animation: card-enter 0.5s cubic-bezier(0.22,1,0.36,1) both;
+}
+/* ── Google sign-in button ── */
+.nawab-google-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--nawab-ink);
+  color: var(--nawab-ivory);
+  border: none;
+  border-radius: 10px;
+  padding: 0.75rem 2rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+  width: 100%;
+  justify-content: center;
+}
+.nawab-google-btn:hover {
+  background: #2a1e3d;
+  box-shadow: 0 4px 20px rgba(30,23,40,0.3);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════
+   CITY SWITCHER MODAL  (compact, in-chat)
+══════════════════════════════════════════════════════════ */
+.csw-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(10, 7, 16, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: selector-in 0.25s ease both;
+}
+
+.csw-card {
+  position: relative;
+  background: rgba(248,242,232,0.97);
+  border: 1px solid rgba(184,134,78,0.25);
+  border-radius: 20px;
+  padding: 2rem 2rem 1.75rem;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.4), 0 0 60px rgba(184,134,78,0.1);
+  animation: card-enter 0.3s ease both;
+}
+
+.csw-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+.csw-ornament {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.2rem;
+}
+.csw-line {
+  width: 50px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(184,134,78,0.4));
+}
+.csw-ornament .csw-line:last-child {
+  background: linear-gradient(to left, transparent, rgba(184,134,78,0.4));
+}
+.csw-star {
+  color: #B8864E;
+  font-size: 11px;
+}
+.csw-title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 300;
+  font-size: 1.6rem;
+  letter-spacing: 0.08em;
+  color: var(--nawab-ink);
+  margin: 0;
+}
+.csw-subtitle {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.75rem;
+  color: var(--nawab-ink-60);
+  margin: 0;
+  letter-spacing: 0.06em;
+}
+
+.csw-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.csw-city-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 1.1rem 0.75rem 1rem;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 14px;
+  background: var(--nawab-parchment);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s, background 0.2s;
+  text-align: center;
+}
+.csw-city-btn:hover {
+  border-color: var(--btn-color);
+  box-shadow: 0 4px 20px var(--btn-glow);
+  transform: translateY(-3px);
+  background: var(--nawab-ivory);
+}
+.csw-city-btn--active {
+  border-color: var(--btn-color) !important;
+  background: var(--nawab-ivory) !important;
+  box-shadow: 0 0 0 1px var(--btn-color), 0 6px 24px var(--btn-glow) !important;
+}
+.csw-active-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 15px;
+  border: 2px solid var(--btn-color);
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.csw-city-symbol {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--btn-color);
+}
+.csw-city-name {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--nawab-ink);
+}
+.csw-city-local {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.8rem;
+  color: var(--btn-color);
+  opacity: 0.7;
+}
+.csw-city-tagline {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nawab-ink-60);
+  line-height: 1.4;
+}
+
+.csw-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--nawab-ink-60);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.csw-close:hover {
+  background: var(--nawab-parchment);
+  color: var(--nawab-ink);
+}
+
+@media (max-width: 500px) {
+  .csw-grid { grid-template-columns: repeat(2, 1fr); }
+  .csw-card { padding: 1.5rem 1.25rem; }
+}
+
+@media (max-width: 800px) {
+  .city-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+@media (max-width: 500px) {
+  .city-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .city-card {
+    padding: 1.5rem 1rem 1.25rem;
+    min-height: 220px;
+  }
+  .city-card-name {
+    font-size: 1.5rem;
+  }
+  .city-card-symbol {
+    font-size: 1.8rem;
+  }
+}
+/* ── Below 1024px: the sidebar toggle is a fixed overlay, so it takes no layout
+   space and lands on top of whatever is at the top of the chat column (status
+   pill, tab bar, first message, landing brand). Reserve its height once on the
+   container rather than patching each child. 44px button + 0.9rem offset. ── */
+@media (max-width: 1023px) {
+  .nawab-copilot-wrapper {
+    padding: 0;
+  }
+  .nawab-chat-frame {
+    padding-top: calc(56px + env(safe-area-inset-top));
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   LANDING PAGE  (centered stage overlay)
+════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════
+   CHAT SHELL & LANDING
+══════════════════════════════════════════════════════════ */
+
+/* Full-height shell — landing and chat live inside this */
+.nawab-chat-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Landing overlay ── */
+.nawab-landing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 0 1.5rem 5rem;
+  pointer-events: auto;
+  background: var(--nawab-ivory);
+  /* smooth slide-down + fade when leaving */
+  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Brand block */
+.nawab-landing__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  margin-bottom: 0;
+}
+
+.nawab-landing__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: -60px;
+  width: 100%;
+}
+.nawab-landing__star {
+  font-size: 1.2rem;
+  margin-bottom: 0.2rem;
+  animation: nawab-pulse 2.4s ease-in-out infinite;
+}
+.nawab-landing__title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 300;
+  font-size: clamp(2.2rem, 7vw, 3rem);
+  letter-spacing: 0.1em;
+  color: var(--nawab-ink);
+  margin: 0;
+  line-height: 1;
+}
+.nawab-landing__title span { font-style: normal; }
+.nawab-landing__subtitle {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--nawab-ink-60);
+  opacity: 0.5;
+  margin: 0.3rem 0 0;
+}
+
+/* Input box */
+.nawab-landing__box {
+  width: 100%;
+  max-width: 680px;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: #fff;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 20px;
+  padding: 14px 12px 14px 22px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 8px 32px rgba(0,0,0,0.04);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.nawab-landing__box:focus-within {
+  border-color: var(--lc, var(--nawab-gold));
+  box-shadow:
+    0 2px 16px rgba(0,0,0,0.07),
+    0 0 0 3px color-mix(in srgb, var(--lc, var(--nawab-gold)) 14%, transparent);
+}
+
+/* Field + fading placeholder */
+/* min-height matches the 44px send button. The row is align-items: flex-end so
+   the button stays bottom-anchored as the textarea grows toward its 120px cap;
+   with a 24px field that left a single line of text sitting ~10px below the
+   button's centre. Matching the heights aligns them without touching the
+   multi-line behaviour. */
+.nawab-landing__field-wrap {
+  flex: 1;
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.nawab-landing__placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 1rem;
+  color: var(--nawab-ink-60);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.38s ease;
+  user-select: none;
+}
+.nawab-landing__textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  box-shadow: none;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 1rem;
+  color: var(--nawab-ink);
+  resize: none;
+  line-height: 1.55;
+  min-height: 24px;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 0;
+  scrollbar-width: thin;
+  align-self: center;
+  text-align: left;
+}
+.nawab-landing__textarea:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Send button */
+.nawab-landing__send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.15s, opacity 0.15s;
+}
+.nawab-landing__send:hover:not(:disabled) { box-shadow: 0 0 0 6px rgba(0,0,0,0.07); opacity: 0.9; }
+.nawab-landing__send:disabled { opacity: 0.3; cursor: default; }
+
+/* ── Tool-call status pill ── */
+.nawab-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 1.25rem;
+  position: relative;
+  margin: 0;
+  background: var(--nawab-parchment);
+  border: none;
+  border-bottom: 1px solid var(--nawab-border);
+  border-radius: 0;
+  animation: nawab-fade-up 0.25s ease both;
+  flex-shrink: 0;
+  width: 100%;
+}
+.nawab-status-pill__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: nawab-pulse 0.9s ease-in-out infinite alternate;
+}
+.nawab-status-pill__text {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  color: var(--nawab-ink-60);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+.nawab-status-pill__text em {
+  font-style: normal;
+  color: var(--nawab-ink);
+}
+
+/* ── Typing dots (NawabAssistantMessage loading state) ── */
+.nawab-typing-dots {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  padding: 4px 0;
+}
+.nawab-typing-dots span {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nawab-ink-60);
+  animation: nawab-typing-bounce 1.2s infinite ease-in-out;
+}
+.nawab-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.nawab-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes nawab-typing-bounce {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+
+/* ── Chat area (banner + tabs + body) ── */
+.nawab-chat-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSE TABS
+════════════════════════════════════════════════════════════ */
+.nawab-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 1rem;
+  border-bottom: 1px solid var(--nawab-border);
+  background: transparent;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nawab-tabbar::-webkit-scrollbar { display: none; }
+
+.nawab-tabbar__tab {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--nawab-ink-60);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.7rem 1rem 0.6rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s;
+  margin-bottom: -1px;
+}
+.nawab-tabbar__tab:hover { color: var(--nawab-ink); }
+.nawab-tabbar__tab--active {
+  color: var(--nawab-gold);
+}
+
+.nawab-tabpanel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-snap-type: y mandatory;
+}
+.nawab-tabpanel > .nawab-grid > * {
+  scroll-snap-align: start;
+}
+
+/* ── Tab grid layouts ── */
+.nawab-grid {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Places: single column */
+.nawab-grid--places {
+  grid-template-columns: 1fr;
+}
+
+/* Videos: single column */
+.nawab-grid--videos {
+  grid-template-columns: 1fr;
+}
+
+/* Maps: single column */
+.nawab-grid--maps {
+  grid-template-columns: 1fr;
+}
+
+/* News: single column full-width */
+.nawab-grid--news {
+  grid-template-columns: 1fr;
+}
+.nawab-grid--news > * {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+
+/* Images: single column */
+.nawab-grid--images {
+  grid-template-columns: 1fr;
+}
+
+/* ── Image lightbox ──
+   Native <dialog>, so the backdrop, focus trap and Esc-to-close come from the
+   browser. Only the look is ours. */
+.nawab-lightbox {
+  /* Tailwind's preflight zeroes `margin` on every element, which wipes out the
+     UA's `dialog { margin: auto }` — the one thing that centres a modal. Without
+     these four lines the lightbox pins itself to the top-left corner. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: fit-content;
+  height: fit-content;
+
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: 94vw;
+  max-height: 94vh;
+  overflow: visible;
+  color: var(--nawab-ink);
+}
+.nawab-lightbox::backdrop {
+  background: rgba(20, 15, 28, 0.82);
+  backdrop-filter: blur(3px);
+}
+.nawab-lightbox__inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--nawab-ivory);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  animation: nawab-fade-up 0.25s ease both;
+}
+.nawab-lightbox__img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 94vw;
+  max-height: 82vh;
+  object-fit: contain;
+  background: #140f1c;
+}
+.nawab-lightbox__missing {
+  margin: 0;
+  padding: 3rem 2rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.85rem;
+  color: var(--nawab-ink-60);
+  text-align: center;
+}
+.nawab-lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.7rem 1rem;
+}
+.nawab-lightbox__caption {
+  margin: 0;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--nawab-ink);
+}
+.nawab-lightbox__source {
+  flex-shrink: 0;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--nawab-gold);
+  text-decoration: none;
+}
+.nawab-lightbox__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(20, 15, 28, 0.65);
+  transition: background 0.2s;
+}
+.nawab-lightbox__close:hover {
+  background: rgba(20, 15, 28, 0.9);
+}
+
+/* ── Agent Thinking Panel ── */
+.nawab-thinking {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--nawab-border);
+}
+.nawab-thinking__toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 6px 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.71rem;
+  letter-spacing: 0.03em;
+  text-align: left;
+  transition: background 0.15s;
+}
+.nawab-thinking__toggle:hover {
+  background: rgba(30,23,40,0.03);
+}
+.nawab-thinking__steps {
+  padding: 6px 1.25rem 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: rgba(30,23,40,0.015);
+}
+.nawab-thinking__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  color: var(--nawab-ink-60);
+  line-height: 1.4;
+}
+.nawab-thinking__icon { flex-shrink: 0; font-size: 0.75rem; }
+.nawab-thinking__query { flex: 1; }
+.nawab-thinking__tags { display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0; }
+.nawab-thinking__tag {
+  font-size: 0.58rem; padding: 1px 5px; border-radius: 999px;
+  border: 1px solid; font-family: 'Google Sans', sans-serif;
+  letter-spacing: 0.04em; opacity: 0.75;
+}
+
+/* ══════════════════════════════════════════════════════════
+   FOCUS STYLES  (keyboard navigation)
+══════════════════════════════════════════════════════════ */
+:focus-visible {
+  outline: 2px solid var(--nawab-gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Override for elements that already have strong affordance */
+.nawab-sidebar__item:focus-visible,
+.nawab-sidebar__new-chat-item:focus-visible {
+  outline-offset: -1px;
+}
+.nawab-landing__send:focus-visible {
+  outline-offset: 3px;
+}
+/* Remove default outline only where we've provided a custom one */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ══════════════════════════════════════════════════════════
+   REDUCED MOTION
+══════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Chat message bubbles ──────────────────────────────────── */
+
+.nawab-message {
+  padding: 0.65rem 0.9rem;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 78%;
+  word-break: break-word;
+}
+
+.nawab-message--user {
+  align-self: flex-end;
+  background: var(--nawab-accent, #C8782E);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  margin-left: auto;
+}
+
+.nawab-message--assistant {
+  align-self: flex-start;
+  background: var(--nawab-surface, rgba(255,255,255,0.08));
+  color: var(--nawab-ink, #1C1525);
+  border-bottom-left-radius: 4px;
+}
+
+.nawab-message--assistant p { margin: 0 0 0.5em; }
+.nawab-message--assistant p:last-child { margin-bottom: 0; }
+.nawab-message--assistant ul,
+.nawab-message--assistant ol { padding-left: 1.2em; margin: 0.3em 0; }
+.nawab-message--assistant code {
+  background: rgba(0,0,0,0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* ── Sidebar link-as-button (Give feedback) ─────────────────── */
+.nawab-sidebar__link--btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+/* ── Sidebar socials — vertical list ────────────────────────── */
+.nawab-sidebar__socials {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0.4rem 0.75rem 0.6rem;
+  flex-shrink: 0;
+}
+
+/* Each social: name on the left, icon on the right */
+.nawab-sidebar__social-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 9px;
+  text-decoration: none;
+  color: var(--nawab-ink-60);
+  transition: background 0.15s, color 0.15s;
+}
+
+.nawab-sidebar__social-btn:hover {
+  background: rgba(184, 134, 78, 0.08);
+  color: var(--nawab-gold);
+}
+
+.nawab-sidebar__social-name {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nawab-sidebar__social-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.nawab-sidebar__social-btn:hover .nawab-sidebar__social-icon {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Feedback page  /feedback
+   Single-column, centered, max-width 560px
+══════════════════════════════════════════════════════════════ */
+
+/* Page shell — matches body background seamlessly */
+.fbp-page {
+  min-height: 100dvh;
+  background: var(--nawab-ivory);
+  display: flex;
+  justify-content: center;
+  padding: 0 1rem 5rem;
+}
+
+/* Centered column */
+.fbp-wrap {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Back button ── */
+.fbp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.78rem;
+  color: var(--nawab-ink-60);
+  padding: 1.25rem 0 0;
+  margin-bottom: 0;
+  transition: color 0.15s;
+}
+.fbp-back:hover { color: var(--nawab-gold); }
+
+/* ── Hero ── */
+.fbp-hero {
+  padding: 2.5rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.fbp-hero__star {
+  font-size: 1.1rem;
+  color: var(--nawab-gold);
+  line-height: 1;
+}
+
+.fbp-hero__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(2.4rem, 6vw, 3.2rem);
+  font-weight: 600;
+  color: var(--nawab-ink);
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.fbp-hero__sub {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.88rem;
+  color: var(--nawab-ink-60);
+  margin: 0.25rem 0 0;
+  line-height: 1.6;
+}
+
+/* ── Submit form ── */
+.fbp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-bottom: 3rem;
+}
+
+/* Textarea field wrapper */
+.fbp-field {
+  background: #fff;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+}
+.fbp-field:focus-within {
+  border-color: var(--nawab-gold);
+  box-shadow:
+    0 1px 6px rgba(0,0,0,0.04),
+    0 0 0 3px rgba(200,120,46,0.12);
+}
+.fbp-field--warn { border-color: var(--nawab-rose); }
+.fbp-field--warn:focus-within {
+  box-shadow: 0 0 0 3px rgba(176,90,74,0.12);
+}
+
+.fbp-textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 1rem;
+  color: var(--nawab-ink);
+  line-height: 1.65;
+  resize: none;
+  padding: 1.1rem 1.25rem 0.75rem;
+  min-height: 140px;
+  max-height: 320px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: block;
+}
+.fbp-textarea::placeholder {
+  color: var(--nawab-ink-60);
+  opacity: 0.6;
+}
+.fbp-textarea:disabled { opacity: 0.5; }
+
+/* Textarea footer: error + char count */
+.fbp-field__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.4rem 1.25rem 0.65rem;
+  border-top: 1px solid var(--nawab-border);
+  background: var(--nawab-ivory);
+}
+
+.fbp-field__error {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  color: var(--nawab-rose);
+}
+
+.fbp-charcount {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  color: var(--nawab-ink-60);
+  opacity: 0.6;
+  margin-left: auto;
+}
+.fbp-charcount--warn {
+  color: var(--nawab-rose);
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* Send button — full width, prominent */
+.fbp-submit {
+  width: 100%;
+  background: var(--nawab-gold);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.9rem 1.5rem;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.15s, box-shadow 0.18s, transform 0.12s;
+  box-shadow: 0 2px 10px rgba(200,120,46,0.2);
+}
+.fbp-submit:hover:not(:disabled) {
+  opacity: 0.92;
+  box-shadow: 0 4px 18px rgba(200,120,46,0.32);
+  transform: translateY(-1px);
+}
+.fbp-submit:active:not(:disabled) { transform: translateY(0); }
+.fbp-submit:disabled {
+  opacity: 0.38;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* Spinner inside submit button */
+.fbp-submit__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: fbp-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes fbp-spin { to { transform: rotate(360deg); } }
+
+/* ── Success state ── */
+.fbp-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  margin-bottom: 3rem;
+  background: #fff;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  animation: nawab-fade-up 0.3s ease both;
+  gap: 0.6rem;
+}
+
+.fbp-success__star {
+  font-size: 2rem;
+  color: var(--nawab-gold);
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.fbp-success__title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--nawab-ink);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.fbp-success__body {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.86rem;
+  color: var(--nawab-ink-60);
+  margin: 0.25rem 0 0.75rem;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.fbp-success__again {
+  background: none;
+  border: 1.5px solid var(--nawab-border);
+  border-radius: 9px;
+  padding: 6px 18px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.8rem;
+  color: var(--nawab-ink-60);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.fbp-success__again:hover {
+  border-color: var(--nawab-gold);
+  color: var(--nawab-gold);
+}
+
+/* ── History section ── */
+.fbp-history {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.fbp-history__header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.fbp-history__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--nawab-border);
+}
+
+.fbp-history__label {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nawab-ink-60);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.fbp-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Date group */
+.fbp-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 1.5rem;
+}
+
+.fbp-group__date {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--nawab-gold);
+  margin-bottom: 0.65rem;
+}
+
+/* Individual entry */
+.fbp-entry {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0 0.85rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--nawab-border);
+}
+.fbp-entry:last-child { border-bottom: none; }
+
+.fbp-entry__time {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.7rem;
+  color: var(--nawab-ink-60);
+  padding-top: 0.2rem;
+  white-space: nowrap;
+}
+
+.fbp-entry__msg {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.875rem;
+  color: var(--nawab-ink);
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Loading skeletons */
+.fbp-skel-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--nawab-border);
+}
+
+/* .nawab-shimmer carries the gradient + animation */
+.fbp-skel {
+  border-radius: 4px;
+}
+
+/* Empty / error state */
+.fbp-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 2rem 0;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.82rem;
+  color: var(--nawab-ink-60);
+  text-align: center;
+}
+
+.fbp-retry {
+  background: none;
+  border: 1px solid var(--nawab-border);
+  border-radius: 8px;
+  padding: 4px 16px;
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: var(--nawab-ink-60);
+  transition: border-color 0.15s, color 0.15s;
+}
+.fbp-retry:hover { border-color: var(--nawab-gold); color: var(--nawab-gold); }
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .fbp-wrap { max-width: 100%; }
+  .fbp-hero__title { font-size: 2.2rem; }
+  .fbp-entry { grid-template-columns: 1fr; gap: 2px; }
+  .fbp-entry__time { padding-top: 0; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   ABOUT PAGE
+══════════════════════════════════════════════════════════ */
+
+.about-root {
+  min-height: 100dvh;
+  background: var(--nawab-ivory);
+  color: var(--nawab-ink);
+  display: flex;
+  flex-direction: column;
+}
+
+.about-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--nawab-border);
+  flex-shrink: 0;
+}
+.about-nav__logo {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--nawab-gold);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}
+.about-nav__back {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.8rem;
+  color: var(--nawab-ink-60);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.about-nav__back:hover { color: var(--nawab-gold); }
+
+.about-main {
+  flex: 1;
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 3rem 2rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+}
+
+.about-hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--nawab-border);
+}
+.about-hero__ornament {
+  font-size: 2rem;
+  color: var(--nawab-gold);
+  animation: ornament-breathe 4s ease-in-out infinite;
+}
+.about-hero__title {
+  font-family: 'Fredoka', sans-serif;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  font-weight: 600;
+  color: var(--nawab-ink);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+.about-hero__tagline {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 1rem;
+  color: var(--nawab-gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.about-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.about-section__heading {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: var(--nawab-ink);
+  letter-spacing: 0.02em;
+  margin: 0;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--nawab-border);
+}
+.about-section__body {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.92rem;
+  color: var(--nawab-ink-60);
+  line-height: 1.75;
+  margin: 0;
+}
+
+.about-stats-section { display: flex; flex-direction: column; gap: 0; }
+.about-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+.about-stat-card {
+  background: var(--nawab-parchment);
+  border: 1px solid var(--nawab-border);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  text-align: center;
+}
+.about-stat-card__value {
+  font-family: 'Fredoka', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--nawab-gold);
+  line-height: 1;
+}
+.about-stat-card__label {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.72rem;
+  color: var(--nawab-ink-60);
+  letter-spacing: 0.04em;
+}
+
+.about-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.about-pill {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.78rem;
+  color: var(--nawab-ink);
+  background: var(--nawab-parchment);
+  border: 1px solid var(--nawab-border);
+  border-radius: 999px;
+  padding: 4px 14px;
+  letter-spacing: 0.02em;
+}
+
+.about-cities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.about-city-chip {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: 1.5px solid;
+  border-radius: 999px;
+  padding: 4px 16px;
+  letter-spacing: 0.04em;
+}
+
+.about-contact .about-section__body { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; }
+.about-contact__sep { color: var(--nawab-border); }
+.about-link {
+  color: var(--nawab-gold);
+  text-decoration: none;
+  font-size: 0.88rem;
+  transition: opacity 0.15s;
+}
+.about-link:hover { opacity: 0.75; }
+
+.about-footer {
+  text-align: center;
+  padding: 1.25rem;
+  border-top: 1px solid var(--nawab-border);
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.68rem;
+  color: var(--nawab-ink-60);
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .about-nav { padding: 0.75rem 1rem; }
+  .about-main { padding: 2rem 1rem 3rem; gap: 2rem; }
+  .about-stats { grid-template-columns: repeat(2, 1fr); }
+}
+
+
+/* ══════════════════════════════════════════════════════════
+   NAWAB MASCOT — the little courtier on the input rim
+   Lives above the box border, so he never covers typed text.
+   Transform/opacity only; no layout properties animated.
+══════════════════════════════════════════════════════════ */
+
+.nawab-mascot-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--m-h);
+  pointer-events: none;
+  z-index: 3;
+}
+.nawab-mascot-track--landing { --m-h: 68px; --m-walk: 230px; }
+.nawab-mascot-track--chat    { --m-h: 46px; --m-walk: 150px; }
+
+.nawab-mascot {
+  position: absolute;
+  left: 22px;
+  bottom: -2px;            /* feet rest on the border line */
+  height: var(--m-h);
+  width: calc(var(--m-h) * 0.727);   /* 64:88 viewBox ratio */
+  pointer-events: auto;
+  transform-origin: 50% 100%;
+  will-change: transform;
+}
+.nawab-mascot__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+/* SVG parts need fill-box so percentage origins behave */
+.nawab-mascot .m-head,
+.nawab-mascot .m-eyes,
+.nawab-mascot .m-plume,
+.nawab-mascot .m-moustache,
+.nawab-mascot .m-arm,
+.nawab-mascot .m-leg,
+.nawab-mascot .m-brow {
+  transform-box: fill-box;
+}
+
+/* ── Always-on: blink + plume drift ── */
+.nawab-mascot .m-eyes {
+  transform-origin: center;
+  animation: nawab-m-blink 5.4s ease-in-out infinite;
+}
+.nawab-mascot .m-plume {
+  transform-origin: 20% 100%;
+  animation: nawab-m-plume 3.4s ease-in-out infinite;
+}
+@keyframes nawab-m-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.12); }
+}
+@keyframes nawab-m-plume {
+  0%, 100% { transform: rotate(-4deg); }
+  50%      { transform: rotate(6deg); }
+}
+
+/* ── stroll: walks the boundary, turns at each end ── */
+.nawab-mascot.is-stroll {
+  animation: nawab-m-stroll 7.6s ease-in-out infinite;
+}
+.nawab-mascot.is-stroll .m-leg--l { animation: nawab-m-step-a 0.62s ease-in-out infinite; }
+.nawab-mascot.is-stroll .m-leg--r { animation: nawab-m-step-b 0.62s ease-in-out infinite; }
+.nawab-mascot.is-stroll .m-arm--l { animation: nawab-m-swing-a 0.62s ease-in-out infinite; }
+.nawab-mascot.is-stroll .m-arm--r { animation: nawab-m-swing-b 0.62s ease-in-out infinite; }
+@keyframes nawab-m-stroll {
+  0%   { transform: translateX(0) scaleX(1) translateY(0); }
+  24%  { transform: translateX(calc(var(--m-walk) * 0.5)) scaleX(1) translateY(-1px); }
+  46%  { transform: translateX(var(--m-walk)) scaleX(1) translateY(0); }
+  52%  { transform: translateX(var(--m-walk)) scaleX(-1) translateY(0); }
+  74%  { transform: translateX(calc(var(--m-walk) * 0.5)) scaleX(-1) translateY(-1px); }
+  96%  { transform: translateX(0) scaleX(-1) translateY(0); }
+  100% { transform: translateX(0) scaleX(1) translateY(0); }
+}
+@keyframes nawab-m-step-a {
+  0%, 100% { transform: rotate(16deg); }
+  50%      { transform: rotate(-16deg); }
+}
+@keyframes nawab-m-step-b {
+  0%, 100% { transform: rotate(-16deg); }
+  50%      { transform: rotate(16deg); }
+}
+@keyframes nawab-m-swing-a {
+  0%, 100% { transform: rotate(-12deg); }
+  50%      { transform: rotate(12deg); }
+}
+@keyframes nawab-m-swing-b {
+  0%, 100% { transform: rotate(12deg); }
+  50%      { transform: rotate(-12deg); }
+}
+/* Pivot each limb at the joint, not the bbox centre */
+.nawab-mascot .m-leg--l { transform-origin: 62% 2%; }
+.nawab-mascot .m-leg--r { transform-origin: 38% 2%; }
+.nawab-mascot .m-arm--l { transform-origin: 79% 20%; }
+.nawab-mascot .m-arm--r { transform-origin: 21% 20%; }
+
+/* ── hang: grips the rim overhead, dangles and swings ── */
+.nawab-mascot.is-hang {
+  transform-origin: 50% 0%;
+  animation: nawab-m-hang 3.2s ease-in-out infinite;
+}
+.nawab-mascot.is-hang .m-arm--l { transform: rotate(-152deg) translateY(2px); }
+.nawab-mascot.is-hang .m-arm--r { transform: rotate(152deg) translateY(2px); }
+.nawab-mascot.is-hang .m-leg--l { animation: nawab-m-dangle-a 1.9s ease-in-out infinite; }
+.nawab-mascot.is-hang .m-leg--r { animation: nawab-m-dangle-b 2.2s ease-in-out infinite; }
+@keyframes nawab-m-hang {
+  0%, 100% { transform: translateY(6px) rotate(-7deg); }
+  50%      { transform: translateY(6px) rotate(7deg); }
+}
+@keyframes nawab-m-dangle-a {
+  0%, 100% { transform: rotate(9deg); }
+  50%      { transform: rotate(-6deg); }
+}
+@keyframes nawab-m-dangle-b {
+  0%, 100% { transform: rotate(-8deg); }
+  50%      { transform: rotate(7deg); }
+}
+
+/* ── twirl: strokes the moustache, pleased with himself ── */
+.nawab-mascot.is-twirl .m-arm--r {
+  transform: rotate(-128deg) translateY(-3px);
+  animation: nawab-m-twirl-arm 1.5s ease-in-out infinite;
+}
+.nawab-mascot.is-twirl .m-moustache {
+  transform-origin: center;
+  animation: nawab-m-twirl-tash 1.5s ease-in-out infinite;
+}
+.nawab-mascot.is-twirl .m-head {
+  transform-origin: 50% 90%;
+  animation: nawab-m-tilt 3s ease-in-out infinite;
+}
+@keyframes nawab-m-twirl-arm {
+  0%, 100% { transform: rotate(-128deg) translateY(-3px); }
+  50%      { transform: rotate(-138deg) translateY(-4px); }
+}
+@keyframes nawab-m-twirl-tash {
+  0%, 100% { transform: scaleX(1) rotate(0deg); }
+  50%      { transform: scaleX(1.12) rotate(-3deg); }
+}
+@keyframes nawab-m-tilt {
+  0%, 100% { transform: rotate(-5deg); }
+  50%      { transform: rotate(5deg); }
+}
+
+/* ── bow: a courtly adab ── */
+.nawab-mascot.is-bow {
+  transform-origin: 50% 100%;
+  animation: nawab-m-bow 3.6s ease-out infinite;
+}
+.nawab-mascot.is-bow .m-arm--r { transform: rotate(-58deg); }
+.nawab-mascot.is-bow .m-arm--l { transform: rotate(18deg); }
+@keyframes nawab-m-bow {
+  0%, 12%, 88%, 100% { transform: rotate(0deg); }
+  38%, 62%           { transform: rotate(-19deg); }
+}
+
+/* ── wave: greets whoever is reading ── */
+.nawab-mascot.is-wave .m-arm--r {
+  animation: nawab-m-wave 0.9s ease-in-out infinite;
+}
+.nawab-mascot.is-wave {
+  animation: nawab-m-lean 3.8s ease-in-out infinite;
+}
+@keyframes nawab-m-wave {
+  0%, 100% { transform: rotate(-142deg); }
+  50%      { transform: rotate(-172deg); }
+}
+@keyframes nawab-m-lean {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-3deg); }
+}
+
+/* ── peek: wanders off the edge, then leans back in ── */
+.nawab-mascot.is-peek {
+  animation: nawab-m-peek 5.2s ease-in-out infinite;
+}
+@keyframes nawab-m-peek {
+  0%    { transform: translateX(0) scaleX(1); }
+  22%   { transform: translateX(var(--m-walk)) scaleX(1); }
+  30%   { transform: translateX(var(--m-walk)) scaleX(-1); }
+  46%   { transform: translateX(calc(var(--m-walk) + 34px)) scaleX(-1); }
+  58%   { transform: translateX(calc(var(--m-walk) + 12px)) scaleX(-1) rotate(-9deg); }
+  70%   { transform: translateX(calc(var(--m-walk) + 34px)) scaleX(-1) rotate(0deg); }
+  88%   { transform: translateX(0) scaleX(-1); }
+  100%  { transform: translateX(0) scaleX(1); }
+}
+
+/* ── ponder: hand at chin, thinking it over (also the reduced-motion pose) ── */
+.nawab-mascot.is-ponder .m-arm--r { transform: rotate(-108deg) translateY(-1px); }
+.nawab-mascot.is-ponder .m-head {
+  transform-origin: 50% 90%;
+  animation: nawab-m-ponder-head 4.8s ease-in-out infinite;
+}
+.nawab-mascot.is-ponder { animation: nawab-m-breathe 4.8s ease-in-out infinite; }
+@keyframes nawab-m-ponder-head {
+  0%, 100% { transform: rotate(-7deg); }
+  50%      { transform: rotate(2deg); }
+}
+
+/* ── attentive: user is typing, so he settles and watches ── */
+.nawab-mascot.is-attentive { animation: nawab-m-breathe 3.6s ease-in-out infinite; }
+.nawab-mascot.is-attentive .m-brow--l { transform: translateY(-1px); }
+.nawab-mascot.is-attentive .m-brow--r { transform: translateY(-1px); }
+@keyframes nawab-m-breathe {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50%      { transform: translateY(-1.5px) scaleY(1.015); }
+}
+
+/* ── hover easter egg: startle him and he perks up ── */
+.nawab-mascot:hover .m-head {
+  transform-origin: 50% 90%;
+  animation: nawab-m-startle 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.nawab-mascot:hover .m-brow { transform: translateY(-2px); }
+@keyframes nawab-m-startle {
+  0%   { transform: translateY(0) rotate(0deg); }
+  35%  { transform: translateY(-3px) rotate(-7deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+
+/* Make room for him above the hero box */
+.nawab-landing__box { position: relative; margin-top: 46px; }
+.nawab-chat-input   { position: relative; }
+
+/* Tighter walking range on small screens */
+@media (max-width: 639px) {
+  .nawab-mascot-track--landing { --m-h: 54px; --m-walk: 110px; }
+  .nawab-mascot-track--chat    { --m-h: 38px; --m-walk: 84px; }
+  .nawab-mascot { left: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nawab-mascot,
+  .nawab-mascot * {
+    animation: none !important;
+  }
+}
+
+/* ── Downtime takeover ─────────────────────────────────────────────── */
+
+.nawab-downtime {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--nawab-ivory);
+  padding: 24px;
+}
+
+.nawab-downtime__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  text-align: center;
+  padding: 32px 28px;
+  background: var(--nawab-parchment);
+  border: 1px solid var(--nawab-border);
+  border-radius: 20px;
+}
+
+.nawab-downtime__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--nawab-gold);
+  animation: pulse-glow 1.6s ease-in-out infinite;
+}
+
+.nawab-downtime__title {
+  font-family: 'Fredoka', sans-serif;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  color: var(--nawab-ink);
+  margin: 0;
+}
+
+.nawab-downtime__body {
+  font-family: 'Google Sans', sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--nawab-ink-60);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nawab-downtime__dot {
+    animation: none;
+  }
+}

@@ -1,0 +1,57 @@
+name: Deploy dev to VPS
+
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch: {}
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+  deploy-backend:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # TODO: this VPS path is carried over from the old nawabAi2.0 repo
+          # and has NOT been verified against the monorepo layout. Update the
+          # script at this path on the VPS to `git fetch`/`reset --hard` the
+          # new repo and build from its `backend/` subfolder, and re-add the
+          # DEPLOY_HOST / DEPLOY_USER / DEPLOY_SSH_KEY secrets to this repo
+          # (secrets don't carry over between repos).
+          script: bash /home/sniffer/scripts/deploy/nawabai20-dev/deploy-dev.sh
+
+  deploy-frontend:
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy frontend over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # TODO: same caveat as deploy-backend above — verify/update this
+          # path and script on the VPS for the new monorepo layout.
+          script: bash /home/sniffer/scripts/deploy/nawabaifrontend-dev/deploy-dev.sh

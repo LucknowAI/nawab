@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        # Next.js inlines NEXT_PUBLIC_* at build time, so these must be
+        # build args, not runtime env vars. Pulled from the deploy
+        # directory's .env via compose variable substitution.
+        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+    restart: always
+    ports:
+      # Loopback-only; nginx terminates TLS and reverse-proxies in.
+      # Host-side port is per-environment via .env (PORT), container
+      # side is fixed to what the Dockerfile's standalone server expects.
+      - "127.0.0.1:${PORT:-3000}:8080"
