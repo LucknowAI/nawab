@@ -153,8 +153,11 @@ export default function ConversationSidebar({
     router.replace("/login");
   }
 
-  const fetchPage = useCallback(async (pageNum: number, append = false) => {
-    if (pageNum === 1) { setLoading(true); setError(null); }
+  const fetchPage = useCallback(async (pageNum: number, append = false, silent = false) => {
+    // `silent` is for background refreshes (e.g. after switching threads) where
+    // we already have data on screen — showing the skeleton would blank a list
+    // the user is actively looking at for no reason.
+    if (pageNum === 1 && !silent) { setLoading(true); setError(null); }
     try {
       const res = await fetch(`/api/conversations?limit=10&page=${pageNum}`, { credentials: "include" });
       if (!res.ok) throw new Error(`${res.status}`);
@@ -163,10 +166,10 @@ export default function ConversationSidebar({
       setConversations(prev => append ? [...prev, ...convs] : convs);
       setHasMore(Array.isArray(data) ? false : (data.has_more ?? false));
     } catch (e) {
-      setError("Could not load conversations.");
+      if (!silent) setError("Could not load conversations.");
       console.error("[ConversationSidebar]", e);
     } finally {
-      if (pageNum === 1) setLoading(false);
+      if (pageNum === 1 && !silent) setLoading(false);
     }
   }, []);
 
@@ -204,8 +207,12 @@ export default function ConversationSidebar({
 
   useEffect(() => { fetchPage(1); }, [fetchPage]);
 
+  // Refresh the list after switching threads (title/count may have changed) —
+  // skip the very first run, the mount effect above already just fetched it.
+  const didMount = useRef(false);
   useEffect(() => {
-    const t = setTimeout(() => fetchPage(1), 1500);
+    if (!didMount.current) { didMount.current = true; return; }
+    const t = setTimeout(() => fetchPage(1, false, true), 1500);
     return () => clearTimeout(t);
   }, [activeThreadId, fetchPage]);
 
