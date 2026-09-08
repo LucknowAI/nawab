@@ -1,8 +1,9 @@
 """Feedback routes."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.auth.jwt_utils import get_current_user_id
+from src.config.settings import settings
 from src.handlers import feedback as handler
 from src.schemas.response import ok
 
@@ -24,7 +25,7 @@ async def submit_feedback(
 @feedback_router.get("/")
 async def list_my_feedback(
     user_id: int = Depends(get_current_user_id),
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=settings.MAX_LIST_LIMIT),
+    offset: int = Query(default=0, ge=0),
 ):
     return ok(await handler.list_feedback(user_id, limit, offset))

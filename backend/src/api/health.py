@@ -1,7 +1,8 @@
 """Health and metrics routes."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
+from src.auth.jwt_utils import get_current_user_id
 from src.handlers import health as handler
 from src.schemas.response import ok
 
@@ -17,5 +18,6 @@ async def health_check():
 
 
 @health_router.get("/metrics")
-async def metrics():
+async def metrics(_user_id: int = Depends(get_current_user_id)):
+    """Host resource metrics — authenticated to avoid public reconnaissance."""
     return ok(await handler.get_system_metrics())

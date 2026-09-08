@@ -128,9 +128,14 @@ async def upsert_user(email: str, google_info: GoogleUserInfo | None = None) -> 
 
 
 def build_user_payload(user: UserModel, token: str = "") -> dict:
-    """The user shape every auth endpoint returns. Token is empty where none is issued."""
+    """The user shape every auth endpoint returns.
+
+    `access_token` is never included in the browser-facing JSON — the session
+    lives in the HttpOnly cookie only. The optional `token` argument is kept for
+    call-site compatibility but intentionally unused in the response body.
+    """
+    del token  # cookie-only session; do not expose JWT to JavaScript
     return {
-        "access_token": token,
         "token_type": "bearer",
         "user_id": user.id,
         "email": user.email,
@@ -180,19 +185,16 @@ async def _load_user(user_id: int) -> UserModel:
     return user
 
 
-def _issue_session(user: UserModel) -> dict:
-    """Mint a JWT for the user and return the login payload carrying it.
-
-    The caller sets the cookie from payload["access_token"].
-    """
+def _issue_session(user: UserModel) -> tuple[dict, str]:
+    """Mint a JWT and return (browser-safe payload, token_for_cookie)."""
     token = create_access_token({"sub": str(user.id), "email": user.email})
-    return build_user_payload(user, token)
+    return build_user_payload(user), token
 
 
 # ── Endpoint handlers ───────────────────────────────────────────────────────
 
-async def login_with_google(raw_id_token: str) -> dict:
-    """Exchange a Google ID-token for an application JWT."""
+async def login_with_google(raw_id_token: str) -> tuple[dict, str]:
+    """Exchange a Google ID-token for an application JWT (cookie-only to browser)."""
     google_info = verify_google_token(raw_id_token)
     user = await upsert_user(google_info.email, google_info)
     return _issue_session(user)
@@ -255,18 +257,36 @@ async def send_login_otp(email: str, background) -> dict:
     return {"message": "OTP sent to your email address", "expires_in": OTP_TTL_SECONDS}
 
 
-async def verify_login_otp(email: str, otp: str) -> dict:
+async def verify_login_otp(email: str, otp: str) -> tuple[dict, str]:
     """Verify an OTP and issue a JWT. The OTP is consumed on first success."""
     email = email.lower()
 
     if not redis_manager.is_connected:
         raise HTTPException(status_code=503, detail="OTP service temporarily unavailable")
 
+    if not await redis_manager.check_otp_verify_rate_limit(email):
+        # Same wording as a bad OTP — do not leak lockout vs wrong code vs missing email.
+        raise HTTPException(status_code=401, detail="Invalid or expired OTP")
+
     if not await redis_manager.verify_and_consume_otp(email, otp):
         raise HTTPException(status_code=401, detail="Invalid or expired OTP")
 
+    await redis_manager.clear_otp_verify_rate_limit(email)
     user = await upsert_user(email)
     return _issue_session(user)
+
+
+async def mint_ws_ticket(user_id: int) -> dict:
+    """Issue a short-lived single-use ticket for browser → backend WebSocket auth."""
+    if not redis_manager.is_connected:
+        raise HTTPException(status_code=503, detail="Ticket service temporarily unavailable")
+    ticket = await redis_manager.create_ws_ticket(user_id)
+    if not ticket:
+        raise HTTPException(status_code=503, detail="Ticket service temporarily unavailable")
+    return {
+        "ticket": ticket,
+        "expires_in": settings.WS_TICKET_TTL_SECONDS,
+    }
 
 
 if __name__ == "__main__":
@@ -297,7 +317,7 @@ if __name__ == "__main__":
 
         user = UserModel(id=1, email="demo@example.com", full_name="Demo", picture=None)
         payload = build_user_payload(user)
-        assert payload["access_token"] == "" and payload["user_id"] == 1
+        assert "access_token" not in payload and payload["user_id"] == 1
         assert payload["default_city_id"] == DEFAULT_CITY
 
         response = _FakeResponse()
