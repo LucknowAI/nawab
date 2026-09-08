@@ -7,4 +7,6 @@
  * `.env.example`. `:8080` is the backend's *Docker* port, which is only
  * reachable locally if you happen to be running the container.
  */
-export const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:9000";
+// Prefer 127.0.0.1 over "localhost" so Node fetch does not hit ::1 while the
+// backend listens on IPv4 only (common local uvicorn/macOS mismatch).
+export const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:9000";

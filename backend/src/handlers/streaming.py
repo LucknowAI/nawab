@@ -1,10 +1,13 @@
 """Runs the agent for one user turn: streams events out, then persists the turn."""
 
 import asyncio
+from dataclasses import replace
 
+from pydantic_ai.messages import ModelRequest, SystemPromptPart
 from pydantic_ai.run import AgentRunResultEvent
 
 from src.agent import AgentDeps, get_agent
+from src.agent.prompt import VOICE_MODE_PROMPT
 from src.database.redis import redis_manager
 from src.handlers.chat import load_history, messages_to_json, persist_conversation
 from src.handlers.stream_events import map_pydantic_event, sanitize_tool_event, tool_status_event
@@ -25,17 +28,71 @@ def _persist_in_background(*args) -> None:
     task.add_done_callback(_background_tasks.discard)
 
 
+def _is_voice_mode_system_part(part) -> bool:
+    return isinstance(part, SystemPromptPart) and part.content == VOICE_MODE_PROMPT
+
+
+def strip_voice_mode_prompt(messages) -> list:
+    """Drop ephemeral VOICE_MODE_PROMPT so it never enters Redis/DB history.
+
+    Clears matching SystemPromptPart entries and ModelRequest.instructions when
+    equal to VOICE_MODE_PROMPT. Voice brevity/Devanagari directives are per-turn
+    only. Older sessions that accidentally persisted them are cleaned on the
+    next load/persist path.
+    """
+    if not messages:
+        return []
+
+    cleaned = []
+    for msg in messages:
+        if not isinstance(msg, ModelRequest):
+            cleaned.append(msg)
+            continue
+        kept = [p for p in msg.parts if not _is_voice_mode_system_part(p)]
+        if not kept:
+            continue
+        clear_instructions = msg.instructions == VOICE_MODE_PROMPT
+        parts_changed = len(kept) != len(msg.parts)
+        if not parts_changed and not clear_instructions:
+            cleaned.append(msg)
+        else:
+            cleaned.append(
+                replace(
+                    msg,
+                    parts=kept,
+                    instructions=None if clear_instructions else msg.instructions,
+                )
+            )
+    return cleaned
+
+
 async def run_agent_stream(send, user_id: int, thread_id: str, content: str,
-                           websocket=None, input_queue=None) -> None:
+                           websocket=None, input_queue=None,
+                           voice_mode: bool = False) -> None:
     """Run one turn, pushing each frontend event through `send`.
 
     `send` is an async callable taking one event dict — websocket.send_json in
     production. It takes a callback rather than yielding, because the closing
     run_done frame and the DB write must still happen when the client has
     already gone away; a generator abandoned mid-iteration never resumes.
+
+    When `voice_mode` is True, VOICE_MODE_PROMPT is passed via pydantic-ai
+    `instructions` (ephemeral for this run only) so typed chat never inherits
+    brief/Devanagari voice directives from Redis/DB history.
     """
     city_id, message_history = await load_history(thread_id, user_id)
     agent = get_agent(city_id)
+
+    # Scrub any historically leaked voice directives before the model sees them.
+    if message_history:
+        message_history = strip_voice_mode_prompt(message_history)
+
+    run_kwargs = {
+        "message_history": message_history,
+        "deps": AgentDeps(city_id=city_id, websocket=websocket, input_queue=input_queue),
+    }
+    if voice_mode:
+        run_kwargs["instructions"] = VOICE_MODE_PROMPT
 
     all_messages = []
     assistant_text_parts = []
@@ -43,14 +100,11 @@ async def run_agent_stream(send, user_id: int, thread_id: str, content: str,
     image_lookup = {}
 
     try:
-        async with agent.run_stream_events(
-            content,
-            message_history=message_history,
-            deps=AgentDeps(city_id=city_id, websocket=websocket, input_queue=input_queue),
-        ) as events:
+        async with agent.run_stream_events(content, **run_kwargs) as events:
             async for event in events:
                 if isinstance(event, AgentRunResultEvent):
-                    all_messages = list(event.result.all_messages())
+                    # Belt-and-suspenders: never persist ephemeral voice instructions.
+                    all_messages = strip_voice_mode_prompt(event.result.all_messages())
                     continue
 
                 ws_event = map_pydantic_event(event, assistant_text_parts)
@@ -71,7 +125,10 @@ async def run_agent_stream(send, user_id: int, thread_id: str, content: str,
     except Exception as exc:
         logger.exception(f"[stream] agent error thread={thread_id!r}: {exc}")
         try:
-            await send({"type": "error", "message": str(exc)})
+            await send({
+                "type": "error",
+                "message": "Something went wrong. Please try again.",
+            })
         except Exception:
             pass
 

@@ -32,18 +32,21 @@ const MOODS = [
   { name: "ponder", hold: 4800 },
 ] as const;
 
-type Mood = (typeof MOODS)[number]["name"] | "attentive";
+type Mood = (typeof MOODS)[number]["name"] | "attentive" | "speaking";
 
 export default function NawabMascot({
   color,
   variant = "landing",
   attentive = false,
+  speaking = false,
 }: {
   color: string;
   /** landing = larger figure on the hero box; chat = compact, on the docked bar */
   variant?: "landing" | "chat";
   /** while the user is typing he stops wandering and watches the field instead */
   attentive?: boolean;
+  /** soft pulse while TTS audio is actually playing */
+  speaking?: boolean;
 }) {
   const [mood, setMood] = useState<Mood>("stroll");
   const [reduced, setReduced] = useState(false);
@@ -73,14 +76,23 @@ export default function NawabMascot({
   }, []);
 
   useEffect(() => {
-    if (reduced || attentive) return;
+    if (reduced || attentive || speaking) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      return;
+    }
     timerRef.current = setTimeout(scheduleNext, MOODS[0].hold);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [reduced, attentive, scheduleNext]);
+  }, [reduced, attentive, speaking, scheduleNext]);
 
-  const active: Mood = reduced ? "ponder" : attentive ? "attentive" : mood;
+  const active: Mood = reduced
+    ? "ponder"
+    : speaking
+    ? "speaking"
+    : attentive
+    ? "attentive"
+    : mood;
 
   return (
     <div className={`nawab-mascot-track nawab-mascot-track--${variant}`} aria-hidden="true">
