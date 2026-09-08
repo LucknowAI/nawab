@@ -1,9 +1,73 @@
 "use client";
 import { BACKEND } from "@/app/lib/backend";
 import { unwrap } from "@/app/lib/api";
+import { asWavBlob, ttsClient } from "@/app/lib/tts";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBackendStatus } from "../context/BackendStatusContext";
+
+/* ─── TTS helpers (shared audio element + sentence chunking) ─────────────── */
+
+/** Tiny silent WAV used to unlock autoplay on a user gesture (mic click). */
+const SILENT_WAV =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
+let sharedTtsAudio: HTMLAudioElement | null = null;
+
+function getSharedTtsAudio(): HTMLAudioElement {
+  if (!sharedTtsAudio) {
+    sharedTtsAudio = document.createElement("audio");
+    sharedTtsAudio.setAttribute("playsinline", "true");
+    sharedTtsAudio.preload = "auto";
+    sharedTtsAudio.style.display = "none";
+    document.body.appendChild(sharedTtsAudio);
+  }
+  return sharedTtsAudio;
+}
+
+function unlockAudioPlayback() {
+  if (typeof window === "undefined") return;
+  try {
+    const audio = getSharedTtsAudio();
+    audio.muted = true;
+    audio.src = SILENT_WAV;
+    void audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.muted = false;
+        audio.volume = 1;
+      })
+      .catch(() => {
+        /* autoplay still blocked — a later mic click will retry */
+      });
+  } catch {
+    // ignore
+  }
+}
+
+/** Pull complete sentences for TTS (. ? ! ।). Display text is unchanged. */
+function pullTtsUtterances(buffer: string): { utterances: string[]; rest: string } {
+  const utterances: string[] = [];
+  let buf = buffer;
+  const hard = /([.?!।])/;
+  const maxChars = 120;
+
+  let match: RegExpMatchArray | null;
+  while ((match = buf.match(hard)) && match.index !== undefined) {
+    const piece = buf.slice(0, match.index + 1).trim();
+    buf = buf.slice(match.index + 1);
+    if (piece) utterances.push(piece);
+  }
+  if (buf.length >= maxChars) {
+    const cut = buf.lastIndexOf(" ", maxChars);
+    const idx = cut >= 40 ? cut : maxChars;
+    const piece = buf.slice(0, idx).trim();
+    buf = buf.slice(idx);
+    if (piece) utterances.push(piece);
+  }
+  return { utterances, rest: buf };
+}
 
 /* ─── Display types (same shape as old useNawabStream) ────────────────────── */
 
@@ -23,11 +87,17 @@ export interface NawabWSState {
   running: boolean;
   activeSearch: ActiveSearch | null;
   thinkingSteps: Array<{ tool: string; query: string }>;
-  sendMessage: (text: string) => void;
+  /** Returns false when the socket is not open (caller should unlock voice UI). */
+  sendMessage: (text: string, voiceMode?: boolean) => boolean;
   reconnecting: boolean;
   historyLoaded: boolean;
   /** True while the agent is blocked on ask_user; the next sendMessage answers it. */
   awaitingQuestion: boolean;
+  interruptSpeech: () => void;
+  /** Synced to actual <audio> playback — not text arrival. */
+  isSpeaking: boolean;
+  /** True while voice TTS work remains (queued or synthesizing). */
+  speechPending: boolean;
 }
 
 /* ─── WebSocket event types from backend ──────────────────────────────────── */
@@ -90,6 +160,8 @@ export function useNawabWS({
   const [reconnecting, setReconnecting] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(!isExistingThread);
   const [awaitingQuestion, setAwaitingQuestion] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechPending, setSpeechPending] = useState(false);
 
   const { reportOutage } = useBackendStatus();
 
@@ -108,8 +180,213 @@ export function useNawabWS({
   const isCleaningUpRef = useRef(false);
   const onToolCompleteRef = useRef(onToolComplete);
   useEffect(() => { onToolCompleteRef.current = onToolComplete; }, [onToolComplete]);
-  // Cached WS auth token fetched from /api/ws-token
-  const wsTokenRef = useRef<string | null>(null);
+
+  // ── Speech playback (Kokoro via /api/v1/voice/synthesize) ──
+  const MAX_READY_BUFFER = 2;
+  const MAX_SYNTH_IN_FLIGHT = 1;
+  /** Abort hung synthesize calls so speechPending cannot lock the composer forever. */
+  const TTS_SYNTH_TIMEOUT_MS = 45_000;
+
+  type ReadyTtsChunk = { blob: Blob; index: number; synthStarted: number };
+
+  const speechBufferRef = useRef<string>("");
+  const speechTextQueueRef = useRef<string[]>([]);
+  const readyChunksRef = useRef<ReadyTtsChunk[]>([]);
+  const synthInFlightRef = useRef(0);
+  const isPlayingRef = useRef<boolean>(false);
+  const shouldSpeakRef = useRef<boolean>(false);
+  const ttsGenerationRef = useRef(0);
+  const ttsChunkSeqRef = useRef(0);
+  const ttsAbortControllersRef = useRef<Set<AbortController>>(new Set());
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
+  const pumpTtsRef = useRef<() => void>(() => {});
+
+  const clearTtsQueues = useCallback(() => {
+    speechTextQueueRef.current = [];
+    readyChunksRef.current = [];
+    synthInFlightRef.current = 0;
+    ttsChunkSeqRef.current = 0;
+  }, []);
+
+  const stopCurrentAudio = useCallback(() => {
+    for (const controller of ttsAbortControllersRef.current) {
+      controller.abort();
+    }
+    ttsAbortControllersRef.current.clear();
+    const audio = audioRef.current ?? sharedTtsAudio;
+    if (audio) {
+      audio.onended = null;
+      audio.onerror = null;
+      audio.pause();
+      audio.removeAttribute("src");
+    }
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+  }, []);
+
+  const ttsWorkRemaining = useCallback(() => {
+    return (
+      speechTextQueueRef.current.length > 0 ||
+      readyChunksRef.current.length > 0 ||
+      synthInFlightRef.current > 0 ||
+      isPlayingRef.current
+    );
+  }, []);
+
+  const interruptSpeech = useCallback(() => {
+    ttsGenerationRef.current += 1;
+    stopCurrentAudio();
+    clearTtsQueues();
+    isPlayingRef.current = false;
+    speechBufferRef.current = "";
+    setIsSpeaking(false);
+    setSpeechPending(false);
+    unlockAudioPlayback();
+  }, [stopCurrentAudio, clearTtsQueues]);
+
+  const playNextReadyChunk = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (isPlayingRef.current) return;
+
+    const generation = ttsGenerationRef.current;
+    const next = readyChunksRef.current.shift();
+    if (!next) {
+      if (!ttsWorkRemaining()) {
+        setIsSpeaking(false);
+        setSpeechPending(false);
+      } else {
+        setSpeechPending(true);
+      }
+      return;
+    }
+
+    isPlayingRef.current = true;
+    setSpeechPending(true);
+
+    const wavBlob = asWavBlob(next.blob);
+    const url = URL.createObjectURL(wavBlob);
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = url;
+
+    const audio = getSharedTtsAudio();
+    audioRef.current = audio;
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (generation !== ttsGenerationRef.current) return;
+      isPlayingRef.current = false;
+      if (!ttsWorkRemaining()) {
+        setIsSpeaking(false);
+        setSpeechPending(false);
+      }
+      pumpTtsRef.current();
+    };
+
+    audio.onended = finish;
+    audio.onerror = () => {
+      console.error("[tts] audio playback failed");
+      finish();
+    };
+    audio.muted = false;
+    audio.volume = 1;
+    audio.src = url;
+
+    void (async () => {
+      try {
+        await audio.play();
+        if (generation !== ttsGenerationRef.current) return;
+        setIsSpeaking(true);
+        pumpTtsRef.current();
+      } catch (err) {
+        console.error("[tts] audio.play() failed", err);
+        finish();
+      }
+    })();
+  }, [ttsWorkRemaining]);
+
+  const prefetchNextChunks = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    while (
+      synthInFlightRef.current < MAX_SYNTH_IN_FLIGHT &&
+      speechTextQueueRef.current.length > 0 &&
+      readyChunksRef.current.length + synthInFlightRef.current < MAX_READY_BUFFER
+    ) {
+      const sentence = speechTextQueueRef.current.shift();
+      if (!sentence) break;
+
+      const cleanText = sentence
+        .replace(/[*#_`~]/g, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .trim();
+
+      if (!cleanText) continue;
+
+      const generation = ttsGenerationRef.current;
+      const index = ++ttsChunkSeqRef.current;
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => {
+        try {
+          controller.abort();
+        } catch {
+          // ignore
+        }
+      }, TTS_SYNTH_TIMEOUT_MS);
+      ttsAbortControllersRef.current.add(controller);
+      synthInFlightRef.current += 1;
+      const synthStarted = performance.now();
+
+      ttsClient
+        .synthesize(cleanText, controller.signal)
+        .then((blob) => {
+          window.clearTimeout(timeoutId);
+          ttsAbortControllersRef.current.delete(controller);
+          synthInFlightRef.current = Math.max(0, synthInFlightRef.current - 1);
+          if (generation !== ttsGenerationRef.current) return;
+          readyChunksRef.current.push({ blob, index, synthStarted });
+          pumpTtsRef.current();
+        })
+        .catch((err: unknown) => {
+          window.clearTimeout(timeoutId);
+          ttsAbortControllersRef.current.delete(controller);
+          synthInFlightRef.current = Math.max(0, synthInFlightRef.current - 1);
+          if (generation !== ttsGenerationRef.current) {
+            return;
+          }
+          console.error("[tts] synthesize failed (no browser fallback):", err);
+          pumpTtsRef.current();
+          if (!ttsWorkRemaining()) {
+            setIsSpeaking(false);
+            setSpeechPending(false);
+          }
+        });
+    }
+  }, [ttsWorkRemaining]);
+
+  const pumpTts = useCallback(() => {
+    if (typeof window === "undefined") return;
+    playNextReadyChunk();
+    prefetchNextChunks();
+  }, [playNextReadyChunk, prefetchNextChunks]);
+
+  useEffect(() => {
+    pumpTtsRef.current = pumpTts;
+  }, [pumpTts]);
+
+  const queueSentenceForSpeech = useCallback((sentence: string) => {
+    speechTextQueueRef.current.push(sentence);
+    setSpeechPending(true);
+    pumpTts();
+  }, [pumpTts]);
+
+  const queueSentenceForSpeechRef = useRef(queueSentenceForSpeech);
+  queueSentenceForSpeechRef.current = queueSentenceForSpeech;
+  const startRevealLoopRef = useRef<() => void>(() => {});
 
   /* ── History loader ──────────────────────────────────────────────────── */
 
@@ -197,6 +474,8 @@ export function useNawabWS({
     }, REVEAL_TICK_MS);
   }, []);
 
+  startRevealLoopRef.current = startRevealLoop;
+
   /* ── Event dispatcher ────────────────────────────────────────────────── */
 
   const dispatch = useCallback((event: WSEvent) => {
@@ -212,7 +491,14 @@ export function useNawabWS({
         }
         const pending = pendingCharsRef.current;
         pending.set(id, (pending.get(id) ?? "") + event.delta);
-        startRevealLoop();
+        startRevealLoopRef.current();
+
+        speechBufferRef.current += event.delta;
+        if (shouldSpeakRef.current) {
+          const { utterances, rest } = pullTtsUtterances(speechBufferRef.current);
+          speechBufferRef.current = rest;
+          for (const utterance of utterances) queueSentenceForSpeechRef.current(utterance);
+        }
         break;
       }
 
@@ -226,6 +512,12 @@ export function useNawabWS({
           ));
           currentTextIdRef.current = null;
         }
+
+        const remaining = speechBufferRef.current.trim();
+        if (remaining && shouldSpeakRef.current) {
+          queueSentenceForSpeechRef.current(remaining);
+        }
+        speechBufferRef.current = "";
         break;
       }
 
@@ -311,7 +603,6 @@ export function useNawabWS({
         break;
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // dispatch is intentionally stable: it only uses refs and setState, no captured props/state
 
   /* ── connect (and reconnect) ─────────────────────────────────────────── */
@@ -327,22 +618,20 @@ export function useNawabWS({
     wsRef.current = ws;
 
     ws.onopen = async () => {
-      // The access_token cookie is scoped to the frontend domain, not the backend
-      // domain, so the browser won't send it with a direct cross-origin WebSocket.
-      // Fetch it via the Next.js proxy and send it as the first auth message.
-      if (!wsTokenRef.current) {
-        try {
-          const res = await fetch("/api/ws-token");
-          if (res.ok) {
-            const data = await res.json() as { token: string };
-            wsTokenRef.current = data.token;
-          }
-        } catch {
-          // ignore — backend will time out and we'll see an error message
+      // Cross-origin WS cannot send the frontend HttpOnly cookie. Fetch a
+      // short-lived single-use ticket (never the long-lived JWT) each connect.
+      let ticket: string | null = null;
+      try {
+        const res = await fetch("/api/ws-token");
+        if (res.ok) {
+          const data = await res.json() as { token: string };
+          ticket = data.token;
         }
+      } catch {
+        // ignore — backend will time out and we'll see an error message
       }
-      if (wsTokenRef.current && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: "auth", token: wsTokenRef.current }));
+      if (ticket && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "auth", token: ticket }));
       }
       reconnectAttemptsRef.current = 0;
       setReconnecting(false);
@@ -372,6 +661,7 @@ export function useNawabWS({
       } else {
         setReconnecting(false);
         setRunning(false);
+        interruptSpeech();
         reportOutage();
         setItems(prev => [...prev, {
           kind: "text", id: newId(),
@@ -384,7 +674,7 @@ export function useNawabWS({
     ws.onerror = () => {
       // onclose fires after onerror — reconnect logic handled there
     };
-  }, [dispatch, loadHistory, reportOutage]);
+  }, [dispatch, loadHistory, reportOutage, interruptSpeech]);
 
   /* ── Effect: open / close WS on threadId change ──────────────────────── */
 
@@ -398,7 +688,8 @@ export function useNawabWS({
       reconnectTimerRef.current = null;
     }
 
-    // Reset UI state for new thread
+    // Reset UI & speech state for new thread
+    interruptSpeech();
     setItems([]);
     setRunning(false);
     setActiveSearch(null);
@@ -415,6 +706,7 @@ export function useNawabWS({
 
     return () => {
       isCleaningUpRef.current = true;
+      interruptSpeech();
       if (reconnectTimerRef.current) {
         clearTimeout(reconnectTimerRef.current);
         reconnectTimerRef.current = null;
@@ -430,14 +722,14 @@ export function useNawabWS({
         wsRef.current = null;
       }
     };
-  }, [threadId, isExistingThread, connect]);
+  }, [threadId, isExistingThread, connect, interruptSpeech]);
 
   /* ── sendMessage ─────────────────────────────────────────────────────── */
 
-  const sendMessage = useCallback((text: string) => {
+  const sendMessage = useCallback((text: string, voiceMode = false): boolean => {
     if (!threadId || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       console.warn("[useNawabWS] WebSocket not open, cannot send message");
-      return;
+      return false;
     }
     setItems(prev => [...prev, { kind: "user", id: newId(), text }]);
 
@@ -448,15 +740,46 @@ export function useNawabWS({
       awaitingQuestionRef.current = false;
       setAwaitingQuestion(false);
       wsRef.current.send(JSON.stringify({ type: "user_input", content: text }));
-      return;
+      return true;
+    }
+
+    // New turn cancels any in-flight TTS queue/playback/prefetch.
+    ttsGenerationRef.current += 1;
+    stopCurrentAudio();
+    clearTtsQueues();
+    isPlayingRef.current = false;
+    speechBufferRef.current = "";
+    setIsSpeaking(false);
+    setSpeechPending(false);
+    shouldSpeakRef.current = voiceMode;
+    if (voiceMode) {
+      console.info("[tts] voice mode enabled for this turn");
     }
 
     setRunning(true);
     setThinkingSteps([]);
     setActiveSearch(null);
     currentTextIdRef.current = null;
-    wsRef.current.send(JSON.stringify({ type: "run", thread_id: threadId, content: text }));
-  }, [threadId]);
+    wsRef.current.send(JSON.stringify({
+      type: "run",
+      thread_id: threadId,
+      content: text,
+      voice_mode: voiceMode,
+    }));
+    return true;
+  }, [threadId, stopCurrentAudio, clearTtsQueues]);
 
-  return { items, running, activeSearch, thinkingSteps, sendMessage, reconnecting, historyLoaded, awaitingQuestion };
+  return {
+    items,
+    running,
+    activeSearch,
+    thinkingSteps,
+    sendMessage,
+    reconnecting,
+    historyLoaded,
+    awaitingQuestion,
+    interruptSpeech,
+    isSpeaking,
+    speechPending,
+  };
 }

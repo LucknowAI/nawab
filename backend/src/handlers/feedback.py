@@ -1,15 +1,16 @@
 """Feedback handlers — submit and list the caller's own feedback."""
 
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from sqlalchemy_models.feedback import FeedbackModel
+from src.config.settings import settings
 from src.database.db import get_db
 
 
 class FeedbackRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=settings.MAX_FEEDBACK_MESSAGE_CHARS)
 
 
 def _serialize(fb, include_user=False) -> dict:
@@ -28,6 +29,8 @@ async def create_feedback(user_id: int, message: str) -> dict:
     message = message.strip()
     if not message:
         raise HTTPException(status_code=422, detail="message cannot be empty")
+    if len(message) > settings.MAX_FEEDBACK_MESSAGE_CHARS:
+        raise HTTPException(status_code=422, detail="message is too long")
 
     async with get_db() as db:
         fb = FeedbackModel(user_id=user_id, message=message)

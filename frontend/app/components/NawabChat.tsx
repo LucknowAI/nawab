@@ -12,6 +12,7 @@ import {
 } from "./NawabActionsProvider";
 import { CITIES, type CityId } from "./CitySelector";
 import NawabMascot from "./NawabMascot";
+import VoiceRecorderButton, { type VoiceUiPhase } from "./VoiceRecorderButton";
 import {
   ResponseTabsProvider, useResponseTabs,
   type TabType,
@@ -41,20 +42,50 @@ const TAB_LABELS: Record<TabType, string> = {
   answer: "Answer", places: "Places", news: "News", videos: "Videos", maps: "Maps", images: "Images",
 };
 
+
+/** Subtle “Nawab is thinking…” with animated dots — voice THINKING only. */
+function VoiceThinkingLabel() {
+  return (
+    <span className="nawab-voice-status">
+      Nawab is thinking
+      <span className="nawab-voice-status__dots" aria-hidden="true">
+        <i>.</i><i>.</i><i>.</i>
+      </span>
+    </span>
+  );
+}
+
+function deriveVoicePhase(
+  voiceStatus: "idle" | "listening" | "transcribing",
+  voiceTurnActive: boolean,
+  isSpeaking: boolean,
+  speechPending: boolean,
+): VoiceUiPhase {
+  if (isSpeaking) return "speaking";
+  if (voiceStatus === "listening") return "listening";
+  if (voiceStatus === "transcribing" || voiceTurnActive || speechPending) return "thinking";
+  return "ready";
+}
+
 /* ── LandingBox ─────────────────────────────────────────── */
 
 function LandingBox({
-  cityId, city, onSend,
+  cityId, city, onSend, voicePhase, onVoiceStateChange, onVoiceSend, onInterrupt,
 }: {
   cityId: CityId;
   city: (typeof CITIES)[number];
-  onSend: (msg: string) => void;
+  onSend: (msg: string, voiceMode?: boolean) => void;
+  voicePhase: VoiceUiPhase;
+  onVoiceStateChange: (state: "idle" | "listening" | "transcribing") => void;
+  onVoiceSend: (text: string) => void;
+  onInterrupt: () => void;
 }) {
   const [value, setValue] = useState("");
   const [suggIdx, setSuggIdx] = useState(0);
   const [suggKey, setSuggKey] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const suggestions = CITY_SUGGESTIONS[cityId];
+  const voiceBusy = voicePhase !== "ready";
 
   useEffect(() => {
     if (value) return;
@@ -71,13 +102,21 @@ function LandingBox({
     const msg = value.trim();
     if (!msg) return;
     setValue("");
-    onSend(msg);
+    onSend(msg, false);
   };
+
+  const statusPlaceholder =
+    voicePhase === "listening" ? (
+      "Nawab is listening…"
+    ) : voicePhase === "thinking" ? (
+      <VoiceThinkingLabel />
+    ) : voicePhase === "speaking" ? (
+      "Nawab is speaking…"
+    ) : null;
 
   return (
     <div className="nawab-landing">
       <div className="nawab-landing__inner">
-        {/* Brand stagger */}
         <motion.div
           className="nawab-landing__brand"
           variants={staggerContainer}
@@ -99,7 +138,6 @@ function LandingBox({
           </motion.p>
         </motion.div>
 
-        {/* Input box fades in after brand */}
         <motion.div
           className="nawab-landing__box"
           style={{ "--lc": city.color } as React.CSSProperties}
@@ -108,19 +146,24 @@ function LandingBox({
           animate="visible"
           transition={{ ...silkTransition, delay: 0.3 }}
         >
-          <NawabMascot color={city.color} variant="landing" attentive={!!value} />
+          <NawabMascot
+            color={city.color}
+            variant="landing"
+            attentive={!!value || voicePhase === "thinking"}
+            speaking={voicePhase === "speaking"}
+          />
           <div className="nawab-landing__field-wrap">
             {!value && (
               <AnimatePresence mode="wait">
                 <motion.span
-                  key={suggKey}
+                  key={statusPlaceholder ? voicePhase : suggKey}
                   className="nawab-landing__placeholder"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 0.55, y: 0, transition: silkTransition }}
                   exit={{ opacity: 0, y: -6, transition: { duration: 0.2 } }}
                   style={{ position: "absolute" }}
                 >
-                  {suggestions[suggIdx]}
+                  {statusPlaceholder ?? suggestions[suggIdx]}
                 </motion.span>
               </AnimatePresence>
             )}
@@ -131,10 +174,23 @@ function LandingBox({
               rows={1}
               onChange={e => setValue(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); } }}
+              disabled={voiceBusy}
               autoFocus
             />
           </div>
-          <SendButton active={!!value.trim()} color={city.color} onClick={submit} />
+          <VoiceRecorderButton
+            color={city.color}
+            uiPhase={voicePhase}
+            disabled={value.trim().length > 0 || voicePhase === "thinking"}
+            onTranscriptionStart={() => onVoiceStateChange("transcribing")}
+            onTranscriptionComplete={(text) => {
+              if (text.trim()) onVoiceSend(text);
+              else onVoiceStateChange("idle");
+            }}
+            onVoiceStateChange={onVoiceStateChange}
+            onInterrupt={onInterrupt}
+          />
+          <SendButton active={!!value.trim() && !voiceBusy} color={city.color} onClick={submit} />
         </motion.div>
       </div>
     </div>
@@ -144,35 +200,60 @@ function LandingBox({
 /* ── ChatInput ──────────────────────────────────────────── */
 
 function ChatInput({
-  onSend, disabled, color,
+  onSend, disabled, color, voicePhase, onVoiceStateChange, onVoiceSend, onInterrupt,
 }: {
-  onSend: (msg: string) => void;
+  onSend: (msg: string, voiceMode?: boolean) => void;
   disabled: boolean;
   color: string;
+  voicePhase: VoiceUiPhase;
+  onVoiceStateChange: (state: "idle" | "listening" | "transcribing") => void;
+  onVoiceSend: (text: string) => void;
+  onInterrupt: () => void;
 }) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendBtnRef = useRef<HTMLButtonElement>(null);
+  const voiceBusy = voicePhase !== "ready";
+  const micDisabled =
+    value.trim().length > 0 ||
+    voicePhase === "thinking" ||
+    (voicePhase === "ready" && disabled);
 
   useAutosize(textareaRef, value);
 
   const submit = () => {
     const msg = value.trim();
-    if (!msg || disabled) return;
+    if (!msg || disabled || voiceBusy) return;
     setValue("");
-    onSend(msg);
+    onSend(msg, false);
   };
+
+  const placeholder =
+    voicePhase === "listening"
+      ? "Listening..."
+      : voicePhase === "thinking"
+      ? undefined
+      : voicePhase === "speaking"
+      ? "Nawab is speaking…"
+      : disabled
+      ? "Nawab is thinking…"
+      : "Ask anything about Lucknow…";
 
   return (
     <div className="nawab-chat-input" style={{ "--lc": color } as React.CSSProperties}>
-      <NawabMascot color={color} variant="chat" attentive={!!value || disabled} />
+      <NawabMascot
+        color={color}
+        variant="chat"
+        attentive={!!value || disabled || voicePhase === "thinking"}
+        speaking={voicePhase === "speaking"}
+      />
       <div className="nawab-landing__field-wrap">
         <textarea
           ref={textareaRef}
           className="nawab-landing__textarea"
           value={value}
           rows={1}
-          placeholder={disabled ? "Nawab is thinking…" : "Ask anything about Lucknow…"}
+          placeholder={voicePhase === "thinking" ? "" : placeholder}
           onChange={e => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -184,16 +265,33 @@ function ChatInput({
               }
             }
           }}
-          disabled={disabled}
+          disabled={disabled || voiceBusy}
         />
+        {!value && voicePhase === "thinking" && (
+          <span className="nawab-landing__placeholder" style={{ position: "absolute", opacity: 0.55, pointerEvents: "none" }}>
+            <VoiceThinkingLabel />
+          </span>
+        )}
       </div>
+      <VoiceRecorderButton
+        color={color}
+        uiPhase={voicePhase}
+        disabled={micDisabled}
+        onTranscriptionStart={() => onVoiceStateChange("transcribing")}
+        onTranscriptionComplete={(text) => {
+          if (text.trim()) onVoiceSend(text);
+          else onVoiceStateChange("idle");
+        }}
+        onVoiceStateChange={onVoiceStateChange}
+        onInterrupt={onInterrupt}
+      />
       <SendButton
         ref={sendBtnRef}
-        active={!!value.trim() && !disabled}
+        active={!!value.trim() && !disabled && !voiceBusy}
         color={color}
         style={{ position: "relative", overflow: "hidden" }}
         onClick={(e) => {
-          if (value.trim() && !disabled && sendBtnRef.current) {
+          if (value.trim() && !disabled && !voiceBusy && sendBtnRef.current) {
             rippleBurst(sendBtnRef.current, e.nativeEvent);
           }
           submit();
@@ -510,7 +608,10 @@ function ChatInner({ cityId, threadId, isExistingThread, city, onHasMessages }: 
     [addPlaces, addNews, addVideos, addMaps, addImages],
   );
 
-  const { items, running, activeSearch, thinkingSteps, sendMessage, reconnecting, historyLoaded, awaitingQuestion } = useNawabWS({
+  const {
+    items, running, activeSearch, thinkingSteps, sendMessage, reconnecting,
+    historyLoaded, awaitingQuestion, interruptSpeech, isSpeaking, speechPending,
+  } = useNawabWS({
     threadId,
     isExistingThread,
     onToolComplete,
@@ -518,7 +619,25 @@ function ChatInner({ cityId, threadId, isExistingThread, city, onHasMessages }: 
 
   const [mode, setMode] = useState<Mode>(isExistingThread ? "chat" : "landing");
   const [pendingMsg, setPendingMsg] = useState<string | null>(null);
+  const [pendingVoiceMode, setPendingVoiceMode] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<"idle" | "listening" | "transcribing">("idle");
+  const [voiceTurnActive, setVoiceTurnActive] = useState(false);
+  const voiceTurnStartedRef = useRef(false);
   const calledOnHasMessages = useRef(false);
+
+  const voicePhase = deriveVoicePhase(voiceStatus, voiceTurnActive, isSpeaking, speechPending);
+
+  useEffect(() => {
+    if (!voiceTurnActive) return;
+    if (running || isSpeaking || speechPending) {
+      voiceTurnStartedRef.current = true;
+      return;
+    }
+    if (!voiceTurnStartedRef.current) return;
+    setVoiceTurnActive(false);
+    setVoiceStatus("idle");
+    voiceTurnStartedRef.current = false;
+  }, [voiceTurnActive, running, isSpeaking, speechPending]);
 
   // If we loaded history for an existing thread but it's empty, show landing.
   // Guarded on !pendingMsg — otherwise this races the effect below: when landing
@@ -539,21 +658,47 @@ function ChatInner({ cityId, threadId, isExistingThread, city, onHasMessages }: 
     }
   }, [items.length, onHasMessages]);
 
+  const clearVoiceLock = useCallback(() => {
+    setVoiceTurnActive(false);
+    setVoiceStatus("idle");
+    voiceTurnStartedRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (mode !== "chat" || !pendingMsg) return;
-    sendMessage(pendingMsg);
+    const ok = sendMessage(pendingMsg, pendingVoiceMode);
+    const wasVoice = pendingVoiceMode;
     setPendingMsg(null);
-  }, [mode, pendingMsg, sendMessage]);
+    setPendingVoiceMode(false);
+    if (!ok && wasVoice) {
+      clearVoiceLock();
+    }
+  }, [mode, pendingMsg, pendingVoiceMode, sendMessage, clearVoiceLock]);
 
-  const handleSend = (msg: string) => {
+  const handleSend = useCallback((msg: string, voiceMode = false): boolean => {
     if (mode === "landing" || mode === "leaving") {
       setPendingMsg(msg);
+      setPendingVoiceMode(voiceMode);
       setMode("leaving");
       setTimeout(() => setMode("chat"), 420);
-    } else {
-      sendMessage(msg);
+      return true; // flush happens after transition; failure handled there
     }
-  };
+    return sendMessage(msg, voiceMode);
+  }, [mode, sendMessage]);
+
+  const handleVoiceSend = useCallback((text: string) => {
+    voiceTurnStartedRef.current = false;
+    setVoiceTurnActive(true);
+    const ok = handleSend(text, true);
+    if (!ok) {
+      clearVoiceLock();
+    }
+  }, [handleSend, clearVoiceLock]);
+
+  const handleVoiceInterrupt = useCallback(() => {
+    interruptSpeech();
+    clearVoiceLock();
+  }, [interruptSpeech, clearVoiceLock]);
 
   const isLanding = mode === "landing" || mode === "leaving";
 
@@ -569,7 +714,15 @@ function ChatInner({ cityId, threadId, isExistingThread, city, onHasMessages }: 
             exit="exit"
             style={{ width: "100%", height: "100%" }}
           >
-            <LandingBox cityId={cityId} city={city} onSend={handleSend} />
+            <LandingBox
+              cityId={cityId}
+              city={city}
+              onSend={handleSend}
+              voicePhase={voicePhase}
+              onVoiceStateChange={setVoiceStatus}
+              onVoiceSend={handleVoiceSend}
+              onInterrupt={handleVoiceInterrupt}
+            />
           </motion.div>
         ) : (
           <motion.div
@@ -629,7 +782,15 @@ function ChatInner({ cityId, threadId, isExistingThread, city, onHasMessages }: 
             {/* awaitingQuestion keeps `running` true (the agent's run is still
                 open, blocked on ask_user) — but the user has to be able to type
                 the answer, so it un-disables the composer. */}
-            <ChatInput onSend={handleSend} disabled={(running && !awaitingQuestion) || reconnecting} color={color} />
+            <ChatInput
+              onSend={handleSend}
+              disabled={(running && !awaitingQuestion) || reconnecting}
+              color={color}
+              voicePhase={voicePhase}
+              onVoiceStateChange={setVoiceStatus}
+              onVoiceSend={handleVoiceSend}
+              onInterrupt={handleVoiceInterrupt}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -32,20 +32,60 @@ class NewChatRequest(BaseModel):
 
 # ── Shared queries ──────────────────────────────────────────────────────────
 
+_GENERIC_NOT_FOUND = "Conversation not found."
+
+
 async def fetch_conversation(db, thread_id: str, user_id: int, required=True):
-    """Return the user's conversation for `thread_id`, or 404 when required."""
+    """Return the user's non-deleted conversation for `thread_id`, or 404 when required.
+
+    Soft-deleted and foreign threads both look like "not found" so we do not
+    reveal whether a conversation exists for another user.
+    """
     result = await db.execute(
         select(ConversationModel)
         .where(ConversationModel.session_id == thread_id)
         .where(ConversationModel.user_id == user_id)
+        .where(ConversationModel.deleted_at.is_(None))
     )
     conv = result.scalar_one_or_none()
     if conv is None and required:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Conversation {thread_id!r} not found.",
+            detail=_GENERIC_NOT_FOUND,
         )
     return conv
+
+
+async def authorize_thread_access(thread_id: str, user_id: int) -> bool:
+    """True if this user may load/run/persist against `thread_id`.
+
+    Checks Redis session ownership when present, then DB ownership. Soft-deleted
+    and foreign threads are rejected with the same False (callers use a generic
+    error). Brand-new thread ids with no Redis/DB row are allowed (first message
+    after POST /chat/new race, or client-generated id before first persist).
+    """
+    session = await redis_manager.get_session(thread_id)
+    if session is not None:
+        owner = session.get("user_id")
+        if owner is not None and str(owner) != str(user_id):
+            return False
+
+    try:
+        async with get_db() as db:
+            result = await db.execute(
+                select(ConversationModel).where(ConversationModel.session_id == thread_id)
+            )
+            conv = result.scalar_one_or_none()
+    except Exception as exc:
+        logger.error(f"[authz] thread lookup failed for {thread_id!r}: {exc}")
+        return False
+
+    if conv is None:
+        return True  # no row yet — legitimate first-use / create path
+
+    if conv.deleted_at is not None:
+        return False
+    return conv.user_id == user_id
 
 
 async def fetch_latest_snapshot(db, conversation_id: int):
@@ -75,16 +115,25 @@ def _parse_history(raw, city_id):
 # ── History and persistence (used by the streaming layer) ───────────────────
 
 async def load_history(thread_id: str, user_id: int):
-    """Return (city_id, message_history) for a thread — Redis first, then DB."""
+    """Return (city_id, message_history) for a thread — Redis first, then DB.
+
+    Redis snapshots are only used when the session owner matches `user_id`, so a
+    stale or stolen thread_id cannot read another user's cached history.
+    """
     session = await redis_manager.get_session(thread_id)
+    if session is not None and str(session.get("user_id")) != str(user_id):
+        return settings.DEFAULT_CITY_ID, None
+
     city_id = (session or {}).get("city_id") or settings.DEFAULT_CITY_ID
 
-    snapshot = await redis_manager.get_chat_snapshot(thread_id)
-    if snapshot:
-        try:
-            return _parse_history(snapshot, city_id)
-        except Exception as exc:
-            logger.warning(f"[history] Redis snapshot parse error for {thread_id}: {exc}")
+    # Only trust the Redis snapshot when we have matching session ownership.
+    if session is not None:
+        snapshot = await redis_manager.get_chat_snapshot(thread_id)
+        if snapshot:
+            try:
+                return _parse_history(snapshot, city_id)
+            except Exception as exc:
+                logger.warning(f"[history] Redis snapshot parse error for {thread_id}: {exc}")
 
     try:
         async with get_db() as db:
@@ -119,8 +168,19 @@ async def persist_conversation(
     """
     try:
         async with get_db() as db:
-            conv = await fetch_conversation(db, thread_id, user_id, required=False)
-            if conv is None:
+            # Look up by thread id alone so we never create a colliding row for a
+            # foreign or soft-deleted conversation (session_id is globally unique).
+            result = await db.execute(
+                select(ConversationModel).where(ConversationModel.session_id == thread_id)
+            )
+            conv = result.scalar_one_or_none()
+            if conv is not None:
+                if conv.user_id != user_id or conv.deleted_at is not None:
+                    logger.warning(
+                        f"[persist] refused write for thread={thread_id!r} user={user_id}"
+                    )
+                    return
+            else:
                 conv = ConversationModel(
                     user_id=user_id,
                     session_id=thread_id,
@@ -217,11 +277,6 @@ async def delete_conversation(user_id: int, thread_id: str) -> dict:
     """Soft-delete a conversation by stamping deleted_at."""
     async with get_db() as db:
         conv = await fetch_conversation(db, thread_id, user_id)
-        if conv.deleted_at is not None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Conversation {thread_id!r} not found.",
-            )
         conv.deleted_at = datetime.now(timezone.utc)
     return {"deleted": thread_id}
 

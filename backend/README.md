@@ -6,17 +6,22 @@ FastAPI + PostgreSQL + Redis backend, with Google Sign-In / OTP auth and streami
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.12+ (Docker uses 3.12.10; **TTS/Kokoro requires 3.12** — not 3.14+)
 - PostgreSQL (running, with a database created)
 - Redis (running — used for rate limiting; falls back to in-memory if unavailable)
 
 ## Setup
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv   # prefer 3.12 to match Docker / optional TTS
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+For local Kokoro TTS on the same `:9000` backend (optional deps), see
+[docs/VOICE.md](docs/VOICE.md) — install `requirements-tts.txt` into a 3.12
+venv (e.g. `.venv-tts312`) and run `main.py` from that env. Do not point the
+frontend at a separate TTS-only port.
 
 Copy the env template and fill in values:
 
@@ -36,6 +41,8 @@ Required for a working local setup:
 | `FRONTEND_ORIGINS` | comma-separated list of allowed CORS origins, e.g. `http://localhost:3000,http://localhost:9001` |
 
 SMTP vars (`SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD`) are only needed if you're testing OTP email delivery.
+
+Voice (STT/TTS) setup, optional Kokoro/torch deps, and memory notes: see [docs/VOICE.md](docs/VOICE.md).
 
 ## Database
 

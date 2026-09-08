@@ -1,5 +1,7 @@
 # --- backend (Python) ---
-backend/.venv/
+backend/.venv
+backend/.venv-tts312/
+backend/.venv-py314/
 backend/venv/
 backend/**/__pycache__/
 *.py[cod]

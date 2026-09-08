@@ -174,5 +174,83 @@ class RedisManager:
             logger.error(f"Error checking OTP rate limit for {email!r}: {e}")
             return True
 
+    async def check_otp_verify_rate_limit(
+        self,
+        email: str,
+        max_attempts: int | None = None,
+        window_seconds: int | None = None,
+    ) -> bool:
+        """True if this email may attempt another OTP verify. Fails closed when Redis is down.
+
+        Unlike request-side OTP rate limiting, verify attempts fail closed so a
+        Redis outage cannot open an unlimited brute-force window.
+        """
+        max_attempts = max_attempts if max_attempts is not None else settings.OTP_VERIFY_MAX_ATTEMPTS
+        window_seconds = (
+            window_seconds if window_seconds is not None else settings.OTP_VERIFY_WINDOW_SECONDS
+        )
+        if not self._connected:
+            return False
+        try:
+            key = f"{settings.CACHE_PREFIX}otp_verify_rl:{email}"
+            count = await self.redis_client.incr(key)
+            if count == 1:
+                await self.redis_client.expire(key, window_seconds)
+            return count <= max_attempts
+        except Exception as e:
+            logger.error(f"Error checking OTP verify rate limit for {email!r}: {e}")
+            return False
+
+    async def clear_otp_verify_rate_limit(self, email: str) -> None:
+        """Reset verify-attempt counter after a successful login."""
+        if not self._connected:
+            return
+        try:
+            await self.redis_client.delete(f"{settings.CACHE_PREFIX}otp_verify_rl:{email}")
+        except Exception as e:
+            logger.error(f"Error clearing OTP verify rate limit for {email!r}: {e}")
+
+    # ── Short-lived WebSocket tickets ───────────────────────────────────────
+
+    async def create_ws_ticket(self, user_id: int, ttl: int | None = None) -> str | None:
+        """Mint a single-use opaque WS ticket scoped to user_id. None if Redis is down."""
+        if not self._connected:
+            return None
+        ttl = ttl if ttl is not None else settings.WS_TICKET_TTL_SECONDS
+        try:
+            import secrets
+
+            ticket = secrets.token_urlsafe(32)
+            await self.redis_client.set(
+                f"{settings.CACHE_PREFIX}ws_ticket:{ticket}",
+                str(user_id),
+                ex=ttl,
+            )
+            return ticket
+        except Exception as e:
+            logger.error(f"Error creating WS ticket for user {user_id}: {e}")
+            return None
+
+    async def consume_ws_ticket(self, ticket: str) -> int | None:
+        """Atomically consume a WS ticket and return its user_id, or None."""
+        if not self._connected or not ticket:
+            return None
+        try:
+            key = f"{settings.CACHE_PREFIX}ws_ticket:{ticket}"
+            # GETDEL when available; otherwise GET + DELETE (small race window).
+            user_raw = None
+            if hasattr(self.redis_client, "getdel"):
+                user_raw = await self.redis_client.getdel(key)
+            else:
+                user_raw = await self.redis_client.get(key)
+                if user_raw is not None:
+                    await self.redis_client.delete(key)
+            if user_raw is None:
+                return None
+            return int(user_raw)
+        except Exception as e:
+            logger.error(f"Error consuming WS ticket: {e}")
+            return None
+
 
 redis_manager = RedisManager()

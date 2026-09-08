@@ -1,0 +1,19 @@
+# Optional TTS stack — Kokoro-82M Hindi (NOT installed by default).
+# Install only on hosts that will serve POST /api/v1/voice/synthesize:
+#   pip install -r requirements-tts.txt
+# System G2P for Hindi:
+#   apt-get install -y espeak-ng   # or: brew install espeak-ng
+#
+# Memory / deploy notes:
+# - First synthesize() downloads hexgrad/Kokoro-82M weights into the HF cache
+#   (~hundreds of MB). Do NOT commit model weights to the repo.
+# - torch alone is large; expect ~1–3+ GB RAM for CPU inference, more with CUDA.
+# - Prefer TTS_DEVICE=cuda|mps when available; CPU works but is slow.
+# - Lazy load only — no startup warmup thread. Cold first request is slower.
+# - HF_TOKEN / HUGGINGFACE_HUB_TOKEN if the hub requires auth.
+
+torch
+transformers
+soundfile
+numpy
+kokoro>=0.9.4

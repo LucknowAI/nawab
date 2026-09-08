@@ -1,8 +1,9 @@
 """Chat routes — conversation lifecycle and history reads."""
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from src.auth.jwt_utils import get_current_user_id
+from src.config.settings import settings
 from src.handlers import chat as handler
 from src.schemas.response import ok
 
@@ -22,8 +23,8 @@ async def new_chat(body: handler.NewChatRequest, user_id: int = Depends(get_curr
 @chat_router.get("/conversations", summary="List user conversations")
 async def list_conversations(
     user_id: int = Depends(get_current_user_id),
-    limit: int = 50,
-    offset: int = 0,
+    limit: int = Query(default=50, ge=1, le=settings.MAX_LIST_LIMIT),
+    offset: int = Query(default=0, ge=0),
 ):
     return ok(await handler.list_conversations(user_id, limit, offset))
 

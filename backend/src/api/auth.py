@@ -17,9 +17,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/google")
 async def google_login(body: handler.GoogleLoginRequest):
     """Verify a Google ID-token, upsert the user, and start a session."""
-    payload = await handler.login_with_google(body.id_token)
+    payload, token = await handler.login_with_google(body.id_token)
     response = ok(payload)
-    handler.set_auth_cookie(response, payload["access_token"])
+    handler.set_auth_cookie(response, token)
     return response
 
 
@@ -51,7 +51,13 @@ async def request_otp(body: handler.OtpRequest, background: BackgroundTasks):
 
 @router.post("/verify-otp")
 async def verify_otp(body: handler.OtpVerifyRequest):
-    payload = await handler.verify_login_otp(body.email, body.otp)
+    payload, token = await handler.verify_login_otp(body.email, body.otp)
     response = ok(payload)
-    handler.set_auth_cookie(response, payload["access_token"])
+    handler.set_auth_cookie(response, token)
     return response
+
+
+@router.post("/ws-ticket")
+async def ws_ticket(user_id: int = Depends(get_current_user_id)):
+    """Mint a short-lived single-use ticket for cross-origin WebSocket auth."""
+    return ok(await handler.mint_ws_ticket(user_id))

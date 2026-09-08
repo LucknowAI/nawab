@@ -20,3 +20,5 @@ google-auth
 redis
 greenlet
 pytest
+httpx
+python-multipart
