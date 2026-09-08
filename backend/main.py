@@ -21,6 +21,7 @@ from src.api.city import city_router
 from src.api.health import health_router
 from src.api.auth import router as auth_router
 from src.api.feedback import feedback_router
+from src.api.voice import voice_router
 from src.middleware.rate_limiter import RateLimiter
 from src.config.settings import settings
 from src.utils.util_logger.logger import logger
@@ -138,6 +139,7 @@ app.include_router(city_router, prefix="/api/v1")
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(feedback_router, prefix="/api/v1")
+app.include_router(voice_router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
