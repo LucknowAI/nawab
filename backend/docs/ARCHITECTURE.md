@@ -41,10 +41,10 @@ Google Sign-In and email OTP, both issuing a JWT stored in an HttpOnly cookie. `
 
 - CORS restricted to `FRONTEND_ORIGINS`.
 - `RateLimiter`: Redis-backed sliding window when available (correct across multiple instances), in-memory fallback otherwise; also caps concurrent in-flight requests via a semaphore sized by `MAX_WORKERS`.
-- `/api/v1/health/` reports Postgres + Redis status and returns HTTP 503 if Postgres is down — this is what `deploy-dev.sh` polls after a rollout to decide whether the deploy succeeded, so it must reflect real dependency health rather than always report "healthy".
+- `/api/v1/health/` reports Postgres + Redis status and returns HTTP 503 if Postgres is down — this is what the deploy workflow polls after a rollout to decide whether the deploy succeeded, so it must reflect real dependency health rather than always report "healthy".
 
 ## Deploy
 
-- `dev` branch: every push auto-deploys via [.github/workflows/deploy-dev.yml](../.github/workflows/deploy-dev.yml) → SSH into the dev VPS → `deploy-dev.sh` (git reset to `origin/dev`, `docker compose build && up`, health-check poll).
+- Manual deploy: run **Deploy backend (manual)** from the GitHub Actions tab ([.github/workflows/deploy-backend-manual.yml](../../.github/workflows/deploy-backend-manual.yml)) and give it a branch or tag. It SSHes into the server, checks out that ref, validates `backend/.env`, runs `docker compose build && up -d`, then polls the health check. If the check fails it rolls back to the previous commit. Step-by-step guide: [CONTRIBUTING.md](../../CONTRIBUTING.md#deploying-the-backend).
 - PRs into `main`/`dev`: gated by [.github/workflows/ci.yml](../.github/workflows/ci.yml) (lint, `pytest`, Docker build).
 - Production deploy pipeline is not yet automated — tracked in issue #5.

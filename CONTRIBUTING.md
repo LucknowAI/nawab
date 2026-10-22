@@ -11,9 +11,9 @@ For code style, tests, and environment setup specific to each app, see:
 
 ## Branching & PRs
 
-- `main` is production; `dev` is the integration branch, auto-deployed to the
-  VPS staging environment on every push (see
-  [.github/workflows/deploy-dev.yml](.github/workflows/deploy-dev.yml)).
+- `main` is production; `dev` is the integration branch. Pushing to `dev` does
+  **not** deploy anything. Deploys are started by hand (see
+  [Deploying the backend](#deploying-the-backend)).
 - Branch off `dev` for new work: `git checkout -b <type>/<short-description>`
   (e.g. `fix/token-limit-guard`). Prefix isn't required to indicate which app
   it touches — CI only runs the jobs for the paths you actually changed.
@@ -45,3 +45,38 @@ Security vulnerabilities should **not** be reported as public issues — see
 ## Code of Conduct
 
 This project follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Deploying the backend
+
+Deploys are manual. Nothing goes live until someone clicks a button.
+
+1. Open the repo on GitHub and go to **Actions**.
+2. Pick **Deploy backend (manual)** on the left.
+3. Click **Run workflow**.
+4. Type the branch or tag to deploy (default is `main`) and click the green
+   **Run workflow** button.
+5. Watch the run. Green means the new version is live. Red means the deploy
+   failed.
+
+What the workflow does:
+
+1. Connects to the server over SSH.
+2. Downloads the code for the branch or tag you picked.
+3. Checks that `backend/.env` exists on the server and has the required
+   settings.
+4. Builds and starts the backend with Docker.
+5. Checks `/api/v1/health/` for up to 30 seconds.
+
+If the health check fails, the workflow puts the **previous version** back
+(rebuilds it and starts it) and the run turns red. On the very first deploy
+there is no previous version, so the broken container is stopped instead.
+
+Good to know:
+
+- Rolling back only restores the code. Database changes that already ran are
+  **not** undone.
+- `backend/.env` lives on the server only and is never in git. If it is
+  missing, the deploy stops with a clear message. Create it first.
+- The workflow needs these repo secrets: `DEPLOY_HOST`, `DEPLOY_USER`,
+  `DEPLOY_SSH_KEY`.
+- Only the backend is covered by this workflow.

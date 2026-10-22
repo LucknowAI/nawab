@@ -24,9 +24,11 @@ jobs:
             DEPLOY_DIR="${HOME}/scripts/UPAI/nawab"
             REPO_URL="git@github-personal:LucknowAI/nawab.git"
 
+            PREV_SHA=""
             mkdir -p "$(dirname "$DEPLOY_DIR")"
             if [ -d "$DEPLOY_DIR/.git" ]; then
               cd "$DEPLOY_DIR"
+              PREV_SHA="$(git rev-parse HEAD)"
               git fetch origin "$DEPLOY_REF"
               git reset --hard "origin/$DEPLOY_REF"
             else
@@ -73,6 +75,16 @@ jobs:
               sleep 3
             done
             echo "Health check failed after rollout" >&2
+            docker compose logs --tail=50 >&2 || true
+            if [ -n "$PREV_SHA" ]; then
+              echo "Rolling back to $PREV_SHA" >&2
+              git reset --hard "$PREV_SHA"
+              DOCKER_BUILDKIT=1 docker compose build
+              docker compose up -d
+            else
+              echo "No previous version, stopping broken container" >&2
+              docker compose down
+            fi
             exit 1
         env:
           DEPLOY_REF: ${{ inputs.ref }}
