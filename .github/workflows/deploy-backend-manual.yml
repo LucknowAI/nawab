@@ -1,0 +1,90 @@
+name: Deploy backend (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to deploy"
+        required: true
+        default: "main"
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: DEPLOY_REF
+          script: |
+            set -euo pipefail
+            DEPLOY_DIR="${HOME}/scripts/UPAI/nawab"
+            REPO_URL="git@github-personal:LucknowAI/nawab.git"
+
+            PREV_SHA=""
+            mkdir -p "$(dirname "$DEPLOY_DIR")"
+            if [ -d "$DEPLOY_DIR/.git" ]; then
+              cd "$DEPLOY_DIR"
+              PREV_SHA="$(git rev-parse HEAD)"
+              git fetch origin "$DEPLOY_REF"
+              git reset --hard "origin/$DEPLOY_REF"
+            else
+              git clone "$REPO_URL" "$DEPLOY_DIR"
+              cd "$DEPLOY_DIR"
+              git checkout "$DEPLOY_REF"
+            fi
+
+            cd "$DEPLOY_DIR/backend"
+            if [ ! -f .env ]; then
+              echo "backend/.env missing on server — create it before deploying" >&2
+              exit 1
+            fi
+
+            set -a
+            source .env
+            set +a
+
+            required_vars="POSTGRES_DB_URL REDIS_URL JWT_SECRET JWT_ALGORITHM GOOGLE_CLIENT_ID FRONTEND_ORIGINS"
+            missing=""
+            for var in $required_vars; do
+              if [ -z "${!var:-}" ]; then
+                missing="$missing $var"
+              fi
+            done
+            if [ -z "${GEMINI_API_KEY:-}" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+              missing="$missing GEMINI_API_KEY-or-OPENAI_API_KEY"
+            fi
+            if [ -n "$missing" ]; then
+              echo "Missing required env vars in backend/.env:$missing" >&2
+              exit 1
+            fi
+
+            DOCKER_BUILDKIT=1 docker compose build
+            docker compose up -d
+
+            PORT="$(grep -E '^PORT=' .env | cut -d= -f2)"
+            PORT="${PORT:-9000}"
+            for i in $(seq 1 10); do
+              if curl -fs "http://127.0.0.1:${PORT}/api/v1/health/" >/dev/null; then
+                echo "Health check passed"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "Health check failed after rollout" >&2
+            docker compose logs --tail=50 >&2 || true
+            if [ -n "$PREV_SHA" ]; then
+              echo "Rolling back to $PREV_SHA" >&2
+              git reset --hard "$PREV_SHA"
+              DOCKER_BUILDKIT=1 docker compose build
+              docker compose up -d
+            else
+              echo "No previous version, stopping broken container" >&2
+              docker compose down
+            fi
+            exit 1
+        env:
+          DEPLOY_REF: ${{ inputs.ref }}

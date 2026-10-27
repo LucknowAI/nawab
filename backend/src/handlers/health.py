@@ -15,7 +15,7 @@ async def check_health() -> dict:
 
     Postgres is a hard dependency (auth, chat history) — unlike Redis there is
     no in-memory fallback, so a broken DB must fail the check rather than be
-    silently ignored. deploy-dev.sh polls this to decide whether a rollout
+    silently ignored. The deploy workflow polls this to decide whether a rollout
     succeeded, and reads the status field.
     """
     try:

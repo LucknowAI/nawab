@@ -10,7 +10,7 @@ health_router = APIRouter(prefix="/health", tags=["Health"])
 
 @health_router.get("/")
 async def health_check():
-    """503 when Postgres is down — deploy-dev.sh gates a rollout on this."""
+    """503 when Postgres is down — the deploy workflow gates a rollout on this."""
     payload = await handler.check_health()
     healthy = payload["status"] == "healthy"
     return ok(payload, status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE)
