@@ -65,7 +65,6 @@ jobs:
             DOCKER_BUILDKIT=1 docker compose build
             docker compose up -d
 
-            PORT="$(grep -E '^PORT=' .env | cut -d= -f2)"
             PORT="${PORT:-9000}"
             for i in $(seq 1 10); do
               if curl -fs "http://127.0.0.1:${PORT}/api/v1/health/" >/dev/null; then
